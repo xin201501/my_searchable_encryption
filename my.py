@@ -46,9 +46,7 @@ class EncryptedSearchEngine:
         self.__inverted_index = defaultdict(list)
         self.__encrypted_docs = {}
         self.__words_appearance_time = defaultdict(int)  # 记录每个关键词出现的次数
-        self.__word_appearance_time_per_doc = (
-            defaultdict()
-        )  # 记录每个关键词出现在每个文档中的次数
+        self.__word_appearance_time_per_doc = defaultdict(lambda: defaultdict(int)) # 记录每个关键词出现在每个文档中的次数
         self.__dataset_path = dataset_path
         self.__threshold = threshold
 
@@ -79,7 +77,7 @@ class EncryptedSearchEngine:
             None: 结果直接更新类成员变量words_appearance_time_per_doc
         """
         # 使用正则表达式提取全部单词并转换为小写
-        words = re.findall(r"\b\w+\b", text.lower())
+        words = re.findall(r"\b[\w-]+\b", text.lower())
 
         # 统计每个单词在当前文档中的出现次数
         # words_appearance_time_per_doc结构为: Dict[word][docid] = count
