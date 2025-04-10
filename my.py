@@ -33,28 +33,28 @@ def decrypt_doc(encrypted_data, key):
     return cipher.decrypt_and_verify(ciphertext, tag).decode("utf-8")
 
 
-def symmetric_encryption_for_keyword(self, word):
-    hmac = hashlib.pbkdf2_hmac("sha256", word.encode(), self.index_key, 100000)
+def symmetric_encryption_for_keyword(key, word):
+    hmac = hashlib.pbkdf2_hmac("sha256", word.encode(), key, 100000)
     return hmac
 
 
 # 构建加密索引
 class EncryptedSearchEngine:
     def __init__(self, file_key, index_key, dataset_path, threshold=10):
-        self.file_key = file_key
-        self.index_key = index_key
-        self.inverted_index = defaultdict(list)
-        self.encrypted_docs = {}
-        self.words_appearance_time = defaultdict(int)  # 记录每个关键词出现的次数
-        self.word_appearance_time_per_doc = defaultdict(
-            defaultdict(int)
+        self.__file_key = file_key
+        self.__index_key = index_key
+        self.__inverted_index = defaultdict(list)
+        self.__encrypted_docs = {}
+        self.__words_appearance_time = defaultdict(int)  # 记录每个关键词出现的次数
+        self.__word_appearance_time_per_doc = (
+            defaultdict()
         )  # 记录每个关键词出现在每个文档中的次数
-        self.dataset_path = dataset_path
-        self.threshold = threshold
+        self.__dataset_path = dataset_path
+        self.__threshold = threshold
 
     def process_whole_document_set(self):
         # 加载示例数据（假设为维基百科JSON格式）
-        with open(self.dataset_path) as f:
+        with open(self.__dataset_path) as f:
             documents = json.load(f)
 
         # 遍历每个文档，对每个文档进行加密
@@ -64,8 +64,9 @@ class EncryptedSearchEngine:
             self.__encrypt_document(idx, doc_content)
 
         self.__count_keyword_appearance()
-        self.__choose_out_keyword(self.threshold)
+        self.__choose_out_keyword(self.__threshold)
         self.__init_inverted_index()
+        self.__build_inverted_index()
 
     def __count_word_appearance_per_doc(self, docid, text):
         """统计指定文档中单词出现次数并更新索引
@@ -83,7 +84,7 @@ class EncryptedSearchEngine:
         # 统计每个单词在当前文档中的出现次数
         # words_appearance_time_per_doc结构为: Dict[word][docid] = count
         for word in words:
-            self.word_appearance_time_per_doc[docid][word] += 1
+            self.__word_appearance_time_per_doc[docid][word] += 1
 
     def __count_keyword_appearance(self):
         """
@@ -103,61 +104,63 @@ class EncryptedSearchEngine:
             None: 直接修改类实例的words_appearance_time属性
         """
         # 遍历每个文档的词频统计记录
-        for docid, word_counts in self.word_appearance_time_per_doc.items():
+        for docid, word_counts in self.__word_appearance_time_per_doc.items():
             # 累加当前文档的词频到全局统计字典
             for word, count in word_counts.items():
-                self.words_appearance_time[word] += count
+                self.__words_appearance_time[word] += count
 
     def __choose_out_keyword(self, threshold):
         # 返回出现次数大于threshold的词
         return [
             word
-            for word, count in self.words_appearance_time.items()
+            for word, count in self.__words_appearance_time.items()
             if count > threshold
         ]
 
     def __init_inverted_index(self):
         # 初始化倒排索引的关键字值
-        for word in self.__choose_out_keyword(self.threshold):
+        for word in self.__choose_out_keyword(self.__threshold):
             # 对关键词进行HMAC处理
             word_enc = symmetric_encryption_for_keyword(word)
-            self.inverted_index[word_enc].append(list)
+            self.__inverted_index[word_enc].append(list)
 
-    def build_inverted_index(self):
+    def __build_inverted_index(self):
         """构建倒排索引
 
         遍历word_appearance_time_per_doc，统计每个关键字在哪些文档中出现以及出现的次数，
         并将结果存储在inverted_index中。inverted_index的结构为{加密的关键字: [(加密的词频, 加密的doc_id), ...]}。
         """
-        for doc_id, word_counts in self.word_appearance_time_per_doc.items():
+        for doc_id, word_counts in self.__word_appearance_time_per_doc.items():
             for word, count in word_counts.items():
                 # 对关键词进行HMAC处理
-                word_enc = symmetric_encryption_for_keyword(word)
+                word_enc = symmetric_encryption_for_keyword(self.__index_key, word)
                 # 对词频进行加密
-                count_enc = symmetric_encryption_for_keyword(str(count))
+                count_enc = symmetric_encryption_for_keyword(
+                    self.__index_key, str(count)
+                )
                 # 对文档ID进行加密
-                doc_id_enc = symmetric_encryption_for_keyword(str(doc_id))
+                doc_id_enc = symmetric_encryption_for_keyword(
+                    self.__index_key, str(doc_id)
+                )
                 # 将加密后的词频和文档ID对添加到倒排索引中
-                self.inverted_index[word_enc].append((count_enc, doc_id_enc))
+                self.__inverted_index[word_enc].append((count_enc, doc_id_enc))
 
     def __encrypt_document(self, doc_id, text: str):
         # 加密文档内容
-        encrypted = encrypt_doc(text, self.file_key)
-        self.encrypted_docs[doc_id] = encrypted
+        encrypted = encrypt_doc(text, self.__file_key)
+        self.__encrypted_docs[doc_id] = encrypted
 
     def search(self, keyword: str):  # 返回词频——文档对
         # 加密查询关键词
-        token = hashlib.pbkdf2_hmac(
-            "sha256", keyword.lower().encode(), self.index_key, 100000
-        )
-        tf_enc_and_doc_id_enc_structs = self.inverted_index.get(token, [])
+        token = symmetric_encryption_for_keyword(keyword)
+        tf_enc_and_doc_id_enc_structs = self.__inverted_index.get(token, [])
         return [
             tf_enc_and_doc_id_enc_struct
             for tf_enc_and_doc_id_enc_struct in tf_enc_and_doc_id_enc_structs
         ]
 
     def decrypt_document(self, doc_id):
-        return decrypt_doc(self.encrypted_docs[doc_id], self.file_key)
+        return decrypt_doc(self.__encrypted_docs[doc_id], self.__file_key)
 
 
 # 使用示例
