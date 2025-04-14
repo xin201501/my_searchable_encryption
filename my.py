@@ -46,18 +46,38 @@ class EncryptedSearchEngine:
         self.__inverted_index = defaultdict(list)
         self.__encrypted_docs = {}
         self.__words_appearance_time = defaultdict(int)  # 记录每个关键词出现的次数
-        self.__word_appearance_time_per_doc = defaultdict(lambda: defaultdict(int)) # 记录每个关键词出现在每个文档中的次数
+        self.__word_appearance_time_per_doc = defaultdict(
+            lambda: defaultdict(int)
+        )  # 记录每个关键词出现在每个文档中的次数
         self.__dataset_path = dataset_path
         self.__threshold = threshold
 
+    def __load_documents(self):
+        documents = []
+        with open(self.__dataset_path, "r") as f:
+            try:
+                # 尝试解析为JSON数组
+                return json.load(f)
+            except json.JSONDecodeError:
+                # 回退到逐行解析模式
+                f.seek(0)
+                for line_num, line in enumerate(f, 1):
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        documents.append(json.loads(line))
+                    except json.JSONDecodeError as e:
+                        print(f"Error parsing line {line_num}: {e}")
+        return documents
+
     def process_whole_document_set(self):
         # 加载示例数据（假设为维基百科JSON格式）
-        with open(self.__dataset_path) as f:
-            documents = json.load(f)
+        documents = self.__load_documents()  # 使用上述加载方法
 
         # 遍历每个文档，对每个文档进行加密
         for idx, doc in enumerate(documents):
-            doc_content = doc["title"] + " " + doc["content"]
+            doc_content = doc["title"] + " " + doc["text"]
             self.__count_word_appearance_per_doc(idx, doc_content)
             self.__encrypt_document(idx, doc_content)
 
@@ -119,7 +139,7 @@ class EncryptedSearchEngine:
         # 初始化倒排索引的关键字值
         for word in self.__choose_out_keyword(self.__threshold):
             # 对关键词进行HMAC处理
-            word_enc = symmetric_encryption_for_keyword(word)
+            word_enc = symmetric_encryption_for_keyword(self.__index_key, word)
             self.__inverted_index[word_enc].append(list)
 
     def __build_inverted_index(self):
@@ -167,7 +187,9 @@ if __name__ == "__main__":
     file_key = generate_key()
     index_key = generate_key()
     engine = EncryptedSearchEngine(
-        file_key=file_key, index_key=index_key, dataset_path="sample.json"
+        file_key=file_key,
+        index_key=index_key,
+        dataset_path="dataset/json_dataset/AA/wiki_00",
     )
     engine.process_whole_document_set()
     # 执行搜索
