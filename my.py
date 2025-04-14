@@ -170,7 +170,7 @@ class EncryptedSearchEngine:
 
     def search(self, keyword: str):  # 返回词频——文档对
         # 加密查询关键词
-        token = symmetric_encryption_for_keyword(keyword)
+        token = symmetric_encryption_for_keyword(self.__index_key, keyword)
         tf_enc_and_doc_id_enc_structs = self.__inverted_index.get(token, [])
         return [
             tf_enc_and_doc_id_enc_struct
@@ -196,4 +196,4 @@ if __name__ == "__main__":
     results = engine.search("science")
     print(f"Found {len(results)} documents:")
     for doc in results[:3]:
-        print(doc[:200] + "...")
+        print(doc)
