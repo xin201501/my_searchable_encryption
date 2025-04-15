@@ -1,4 +1,7 @@
+import argparse
 import json
+import os
+import sys
 from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
 from Crypto.Util.Padding import pad, unpad
@@ -193,18 +196,35 @@ class EncryptedSearchEngine:
 
 # 使用示例
 if __name__ == "__main__":
+    # 配置命令行参数解析
+    parser = argparse.ArgumentParser(description="Encrypted Search Engine")
+    parser.add_argument(
+        "--dataset", type=str, required=True, help="Path to dataset JSON file"
+    )
+    parser.add_argument(
+        "--keyword", type=str, required=True, help="Search keyword to look up"
+    )
+    args = parser.parse_args()
+    # 判断文件是否存在
+    if not os.path.exists(args.dataset):
+        print(
+            f"{Fore.red}Error: Dataset file {args.dataset} does not exist.{Style.reset}"
+        )
+        sys.exit(1)
 
+    # 创建加密引擎
     file_key = generate_key()
     index_key = generate_key()
     engine = EncryptedSearchEngine(
         file_key=file_key,
         index_key=index_key,
-        dataset_path="dataset/test.json",
+        dataset_path=args.dataset,
         threshold=2,
     )
     engine.process_whole_document_set()
+
     # 执行搜索
-    results = engine.search("computing")
+    results = engine.search(args.keyword.lower())
     print(f"Found {Fore.red}{len(results)}{Style.reset} document(s):")
     for tf_enc, doc_id_str_enc in results:
         tf_str = symmetric_decryption_for_keyword(index_key, tf_enc)
