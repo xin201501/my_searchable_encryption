@@ -1,0 +1,9 @@
+iniconfig==2.1.0
+packaging==24.2
+pip-autoremove==0.10.0
+pluggy==1.5.0
+pycryptodome==3.22.0
+pytest==8.3.5
+pytest-mock==3.14.0
+setuptools==78.1.0
+wikiextractor @ git+https://github.com/attardi/wikiextractor.git@ab8988ebfa9e4557411f3d4c0f4ccda139e18875
