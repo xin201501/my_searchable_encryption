@@ -4,6 +4,7 @@ from Crypto.Random import get_random_bytes
 from Crypto.Util.Padding import pad, unpad
 import re
 from collections import defaultdict
+from colored import Fore, Style
 
 
 # 生成加密密钥
@@ -204,6 +205,13 @@ if __name__ == "__main__":
     engine.process_whole_document_set()
     # 执行搜索
     results = engine.search("computing")
-    print(f"Found {len(results)} documents:")
-    for doc in results[:3]:
-        print(doc)
+    print(f"Found {Fore.red}{len(results)}{Style.reset} document(s):")
+    for tf_enc, doc_id_str_enc in results:
+        tf_str = symmetric_decryption_for_keyword(index_key, tf_enc)
+        doc_id_str = symmetric_decryption_for_keyword(index_key, doc_id_str_enc)
+        tf = int(tf_str)
+        doc_id = int(doc_id_str)
+        print(
+            f"Keyword appears {Fore.red}{tf}{Style.reset} time(s) in document {Fore.green}{doc_id}{Style.reset}"
+        )
+        print(f"Content: \n{engine.decrypt_document(doc_id)}")
