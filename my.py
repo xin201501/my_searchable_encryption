@@ -94,8 +94,6 @@ class EncryptedSearchEngine:
             self.__encrypt_document(idx, doc_content)
 
         self.__count_keyword_appearance()
-        self.__choose_out_keyword(self.__threshold)
-        self.__init_inverted_index()
         self.__build_inverted_index()
 
     def __count_word_appearance_per_doc(self, docid, text):
@@ -149,7 +147,7 @@ class EncryptedSearchEngine:
 
     def __init_inverted_index(self):
         # 初始化倒排索引的关键字值
-        for word in self.__choose_out_keyword(self.__threshold):
+        for word in self.__choose_out_keyword():
             # 对关键词进行确定性加密处理
             word_enc = symmetric_encryption_for_keyword(self.__index_key, word)
             self.__inverted_index[word_enc] = []
