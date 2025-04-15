@@ -161,7 +161,7 @@ class EncryptedSearchEngine:
         """
         for doc_id, word_counts in self.__word_appearance_time_per_doc.items():
             for word, count in word_counts.items():
-                if self.__words_appearance_time[word] < self.__threshold:
+                if self.__words_appearance_time[word] <= self.__threshold:
                     continue
                 # 对关键词进行确定性加密处理
                 word_enc = symmetric_encryption_for_keyword(self.__index_key, word)
