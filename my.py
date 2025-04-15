@@ -1,7 +1,7 @@
 import json
 from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
-import hashlib
+from Crypto.Util.Padding import pad, unpad
 import re
 from collections import defaultdict
 
@@ -34,8 +34,20 @@ def decrypt_doc(encrypted_data, key):
 
 
 def symmetric_encryption_for_keyword(key, word):
-    hmac = hashlib.pbkdf2_hmac("sha256", word.encode(), key, 100000)
-    return hmac
+    # 使用AES加密算法进行加密
+    cipher = AES.new(key, AES.MODE_ECB)
+    # 添加PKCS7填充
+    padded_data = pad(word.encode(), AES.block_size)
+    ciphertext = cipher.encrypt(padded_data)
+    return ciphertext
+
+
+def symmetric_decryption_for_keyword(key, word_enc):
+    # 使用AES解密算法进行解密
+    cipher = AES.new(key, AES.MODE_ECB)
+    decrypted_padded = cipher.decrypt(word_enc)
+    # 移除填充
+    return unpad(decrypted_padded, AES.block_size).decode()
 
 
 # 构建加密索引
@@ -100,7 +112,7 @@ class EncryptedSearchEngine:
         words = re.findall(r"\b[\w-]+\b", text.lower())
 
         # 统计每个单词在当前文档中的出现次数
-        # words_appearance_time_per_doc结构为: Dict[word][docid] = count
+        # words_appearance_time_per_doc结构为: Dict[docid][word] = count
         for word in words:
             self.__word_appearance_time_per_doc[docid][word] += 1
 
@@ -127,20 +139,20 @@ class EncryptedSearchEngine:
             for word, count in word_counts.items():
                 self.__words_appearance_time[word] += count
 
-    def __choose_out_keyword(self, threshold):
+    def __choose_out_keyword(self):
         # 返回出现次数大于threshold的词
         return [
             word
             for word, count in self.__words_appearance_time.items()
-            if count > threshold
+            if count > self.__threshold
         ]
 
     def __init_inverted_index(self):
         # 初始化倒排索引的关键字值
         for word in self.__choose_out_keyword(self.__threshold):
-            # 对关键词进行HMAC处理
+            # 对关键词进行确定性加密处理
             word_enc = symmetric_encryption_for_keyword(self.__index_key, word)
-            self.__inverted_index[word_enc].append(list)
+            self.__inverted_index[word_enc] = []
 
     def __build_inverted_index(self):
         """构建倒排索引
@@ -150,7 +162,9 @@ class EncryptedSearchEngine:
         """
         for doc_id, word_counts in self.__word_appearance_time_per_doc.items():
             for word, count in word_counts.items():
-                # 对关键词进行HMAC处理
+                if self.__words_appearance_time[word] < self.__threshold:
+                    continue
+                # 对关键词进行确定性加密处理
                 word_enc = symmetric_encryption_for_keyword(self.__index_key, word)
                 # 对词频进行加密
                 count_enc = symmetric_encryption_for_keyword(
@@ -170,12 +184,9 @@ class EncryptedSearchEngine:
 
     def search(self, keyword: str):  # 返回词频——文档对
         # 加密查询关键词
-        token = symmetric_encryption_for_keyword(self.__index_key, keyword)
+        token = symmetric_encryption_for_keyword(self.__index_key, keyword.lower())
         tf_enc_and_doc_id_enc_structs = self.__inverted_index.get(token, [])
-        return [
-            tf_enc_and_doc_id_enc_struct
-            for tf_enc_and_doc_id_enc_struct in tf_enc_and_doc_id_enc_structs
-        ]
+        return tf_enc_and_doc_id_enc_structs
 
     def decrypt_document(self, doc_id):
         return decrypt_doc(self.__encrypted_docs[doc_id], self.__file_key)
@@ -189,11 +200,12 @@ if __name__ == "__main__":
     engine = EncryptedSearchEngine(
         file_key=file_key,
         index_key=index_key,
-        dataset_path="dataset/json_dataset/AA/wiki_00",
+        dataset_path="dataset/test.json",
+        threshold=2,
     )
     engine.process_whole_document_set()
     # 执行搜索
-    results = engine.search("science")
+    results = engine.search("computing")
     print(f"Found {len(results)} documents:")
     for doc in results[:3]:
         print(doc)

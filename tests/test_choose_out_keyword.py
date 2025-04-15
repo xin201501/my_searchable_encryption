@@ -25,7 +25,8 @@ def engine():
 
 def test_threshold_boundary(engine):
     """验证精确边界条件（threshold=10）"""
-    result = engine._EncryptedSearchEngine__choose_out_keyword(10)
+    engine._EncryptedSearchEngine__threshold = 10
+    result = engine._EncryptedSearchEngine__choose_out_keyword()
     # 验证应包含的项
     assert "ai" in result
     assert "quantum" in result
@@ -42,7 +43,8 @@ def test_mixed_frequency(engine):
     engine._EncryptedSearchEngine__words_appearance_time.update({"iot": 12, "vr": 5})
     # 将ai的count更新为10
     engine._EncryptedSearchEngine__words_appearance_time.update({"ai": 10})
-    result = engine._EncryptedSearchEngine__choose_out_keyword(12)
+    engine._EncryptedSearchEngine__threshold = 12
+    result = engine._EncryptedSearchEngine__choose_out_keyword()
     # 验证排序无关的内容匹配，ai 值已更新为10，小于threshold，应该被排除
     assert set(result) == {"quantum"}
 
@@ -57,16 +59,18 @@ def test_mixed_frequency(engine):
 )
 def test_various_thresholds(engine, threshold, expected):
     """参数化测试不同阈值场景"""
-    assert sorted(
-        engine._EncryptedSearchEngine__choose_out_keyword(threshold)
-    ) == sorted(expected)
+    engine._EncryptedSearchEngine__threshold = threshold
+    assert sorted(engine._EncryptedSearchEngine__choose_out_keyword()) == sorted(
+        expected
+    )
 
 
 def test_zero_count_edge_case(engine):
     """测试包含count=0的特殊情况"""
     # 添加count=0的测试数据
     engine._EncryptedSearchEngine__words_appearance_time["nft"] = 0
-    result = engine._EncryptedSearchEngine__choose_out_keyword(0)
+    engine._EncryptedSearchEngine__threshold = 0
+    result = engine._EncryptedSearchEngine__choose_out_keyword()
     # 验证包含正常count>0的项
     assert "ai" in result
     assert "quantum" in result

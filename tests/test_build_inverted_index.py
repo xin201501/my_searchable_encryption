@@ -9,11 +9,10 @@ import my
 def search_engine(mocker):
     """测试固件：初始化加密搜索引擎实例"""
     engine = EncryptedSearchEngine(
-        file_key="test_key", index_key="test_key", dataset_path="/dev/null"
+        file_key="test_key", index_key="test_key", dataset_path="/dev/null", threshold=0
     )
-    engine._EncryptedSearchEngine__inverted_index = defaultdict(list)
-    engine._EncryptedSearchEngine__word_appearance_time_per_doc = {}
     mocker.patch("my.symmetric_encryption_for_keyword")  # 正确mock模块级函数
+    my.symmetric_encryption_for_keyword.side_effect = lambda _, x: f"enc_{x}"
     return engine
 
 
@@ -21,6 +20,7 @@ class TestBuildInvertedIndex:
     def test_empty_documents(self, search_engine):
         """场景1: 空文档集合时索引保持为空"""
         # When
+        search_engine._EncryptedSearchEngine__choose_out_keyword()
         search_engine._EncryptedSearchEngine__build_inverted_index()
 
         # Then
@@ -33,6 +33,7 @@ class TestBuildInvertedIndex:
         search_engine._EncryptedSearchEngine__word_appearance_time_per_doc = {
             1: {"apple": 3}
         }
+        search_engine._EncryptedSearchEngine__words_appearance_time = {"apple": 3}
         my.symmetric_encryption_for_keyword.side_effect = (
             lambda _, x: f"enc_{x}"
         )  # 直接配置mock
@@ -68,7 +69,8 @@ class TestBuildInvertedIndex:
         """场景3: 多文档共享关键词时聚合结果验证"""
         # Given
         search_engine._EncryptedSearchEngine__word_appearance_time_per_doc = test_input
-        my.symmetric_encryption_for_keyword.side_effect = lambda _, x: f"enc_{x}"
+        search_engine._EncryptedSearchEngine__count_keyword_appearance()
+        # my.symmetric_encryption_for_keyword.side_effect = lambda _, x: f"enc_{x}"
 
         # When
         search_engine._EncryptedSearchEngine__build_inverted_index()
@@ -88,9 +90,11 @@ class TestBuildInvertedIndex:
         search_engine._EncryptedSearchEngine__word_appearance_time_per_doc = {
             1001: {"python": 10}
         }
-        my.symmetric_encryption_for_keyword.return_value = "encrypted"
+        search_engine._EncryptedSearchEngine__words_appearance_time = {"python": 10}
+        # my.symmetric_encryption_for_keyword.return_value = "encrypted"
 
         # When
+
         search_engine._EncryptedSearchEngine__build_inverted_index()
 
         # Then
@@ -98,3 +102,18 @@ class TestBuildInvertedIndex:
         assert expected_params == [
             args[0][1] for args in my.symmetric_encryption_for_keyword.call_args_list
         ]
+
+    def test_single_doc_with_words_less_than_threshold(self, search_engine):
+        """场景5: 单文档关键词数量低于阈值时索引保持为空"""
+        # Given
+        search_engine._EncryptedSearchEngine__word_appearance_time_per_doc = {
+            1: {"apple": 3}
+        }
+        search_engine._EncryptedSearchEngine__words_appearance_time = {"apple": 3}
+        search_engine._EncryptedSearchEngine__threshold = 4
+
+        # When
+        search_engine._EncryptedSearchEngine__build_inverted_index()
+
+        # Then
+        assert not search_engine._EncryptedSearchEngine__inverted_index
