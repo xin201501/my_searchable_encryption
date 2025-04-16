@@ -219,7 +219,7 @@ if __name__ == "__main__":
         file_key=file_key,
         index_key=index_key,
         dataset_path=args.dataset,
-        threshold=2,
+        threshold=0,
     )
     engine.process_whole_document_set()
 
