@@ -62,6 +62,14 @@ def test_invalid_decryption():
             [("enc_tf_A", "enc_doc1"), ("enc_tf_C", "enc_doc3")],
             [(8, 1003), (5, 1001)],
         ),  # 根据新mock数据调整期望值
+        (
+            [
+                ("enc_tf_B", "enc_doc3"),
+                ("enc_tf_A", "enc_doc1"),
+                ("enc_tf_C", "enc_doc2"),
+            ],
+            [(8, 1002), (5, 1001), (3, 1003)],
+        ),
     ],
 )
 def test_parametrized_cases(input_data, expected, mock_decryption):
