@@ -8,6 +8,8 @@ from Crypto.Util.Padding import pad, unpad
 import re
 from collections import defaultdict
 from colored import Fore, Style
+import requests
+import base64
 
 
 # 生成加密密钥
@@ -226,12 +228,32 @@ if __name__ == "__main__":
     # 执行搜索
     results = engine.search(args.keyword.lower())
     print(f"Found {Fore.red}{len(results)}{Style.reset} document(s):")
-    for tf_enc, doc_id_str_enc in results:
-        tf_str = symmetric_decryption_for_keyword(index_key, tf_enc)
-        doc_id_str = symmetric_decryption_for_keyword(index_key, doc_id_str_enc)
-        tf = int(tf_str)
-        doc_id = int(doc_id_str)
-        print(
-            f"Keyword appears {Fore.red}{tf}{Style.reset} time(s) in document {Fore.green}{doc_id}{Style.reset}"
+    # 发送HTTP请求
+    # 将 results 和 index_key 作为 JSON 数据发送到服务器
+    print(f"{Fore.red}Sending HTTP request to server...{Style.reset}")
+    payload = {
+        "encrypted_results": [
+            (
+                base64.b64encode(count_enc).decode("utf-8"),
+                base64.b64encode(doc_id_enc).decode("utf-8"),
+            )
+            for count_enc, doc_id_enc in results  # results来自engine.search()
+        ],
+        "index_key": base64.b64encode(index_key).decode("utf-8"),
+    }
+    try:
+        response = requests.post(
+            url="http://localhost:8003/sort-encrypted-results",
+            json=payload,
         )
-        print(f"Content: \n{engine.decrypt_document(doc_id)}")
+        response.raise_for_status()  # 如果响应状态码不是2xx，则引发异常
+        sorted_results = response.json()["sorted_results"]
+        for tf_str, doc_id_str in sorted_results:
+            tf = int(tf_str)
+            doc_id = int(doc_id_str)
+            print(
+                f"Keyword appears {Fore.red}{tf}{Style.reset} times in document {Fore.green}{doc_id}{Style.reset}"
+            )
+            print(f"Content: \n{engine.decrypt_document(doc_id)}")
+    except requests.exceptions.RequestException as e:
+        print(f"{Fore.red}Error: Failed to send HTTP request.{Style.reset}")

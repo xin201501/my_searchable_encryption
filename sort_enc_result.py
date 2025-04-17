@@ -1,3 +1,4 @@
+import base64
 import my
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
@@ -30,9 +31,14 @@ class SortRequest(BaseModel):
 @app.post("/sort-encrypted-results")
 async def sort_encrypted_results(request: SortRequest):
     try:
+        decoded_results = [
+            (base64.b64decode(count_b64), base64.b64decode(doc_id_b64))
+            for count_b64, doc_id_b64 in request.encrypted_results
+        ]
+        decoded_index_key = base64.b64decode(request.index_key)
         # 直接使用已有的排序函数
         sorted_results = sort_enc_result(
-            enc_result_list=request.encrypted_results, index_key=request.index_key
+            enc_result_list=decoded_results, index_key=decoded_index_key
         )
         return {"sorted_results": sorted_results}
     except Exception as e:
