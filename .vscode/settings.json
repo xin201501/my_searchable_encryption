@@ -3,5 +3,9 @@
         "tests"
     ],
     "python.testing.unittestEnabled": false,
-    "python.testing.pytestEnabled": true
+    "python.testing.pytestEnabled": true,
+    // .vscode/settings.json
+    "python.analysis.extraPaths": [
+        "../multi-secret-sharing/python" // 添加自定义模块路径
+    ]
 }
