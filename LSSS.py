@@ -98,3 +98,20 @@ def setup_secret_sharing(
     pseudo_shares = dealer.split_secrets()
 
     return dealer, pseudo_shares
+
+
+def combine_secret_from_shares(dealer, pseudo_shares, secret_num, group_num):
+    """
+    从伪份额中组合指定秘密
+
+    :param dealer: Dealer实例
+    :param pseudo_shares: 伪份额列表
+    :param secret_num: 要恢复的秘密索引（默认0）
+    :param group_num: 访问结构组索引（默认0）
+    :return: 恢复的秘密值
+    """
+    combined_secret = dealer.combine_secret(
+        secret_num, group_num, pseudo_shares[secret_num][group_num]
+    )
+
+    return combined_secret
