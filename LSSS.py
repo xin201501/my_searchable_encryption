@@ -3,7 +3,8 @@ import secrets
 # 使用multisecret库分割密钥
 import sys
 
-sys.path.append("../multi-secret-sharing/python")
+if "../multi-secret-sharing/python" not in sys.path:
+    sys.path.append("../multi-secret-sharing/python")
 import multisecret.MultiSecretRoyAdhikari
 
 from Crypto.Util.number import getPrime

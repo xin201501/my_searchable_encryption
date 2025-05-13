@@ -1,4 +1,5 @@
 mod crypto;
+mod recover_secret;
 use actix_web::{HttpResponse, Responder, web};
 use base64::prelude::*;
 use crypto::symmetric_decryption_for_keyword_128bit;
