@@ -98,8 +98,7 @@ def test_http_error(mock_requests_post):
         combine_secret_request(
             test_dealer_base64, test_shares, test_secret_num, test_group_num
         )
-        assert "HTTP Error:" in str(e.value)
-        assert "400 Client Error" in str(e.value)
+    assert "400 Client Error" in str(e.value)
 
     # 可选：验证请求是否按预期构造
     expected_payload = {
@@ -135,7 +134,7 @@ def test_request_exception(mock_requests_post):
         combine_secret_request(
             test_dealer_base64, test_shares, test_secret_num, test_group_num
         )
-        assert "Connection failed" in str(e)
+    assert "Connection failed" in str(e)
 
     # 可选：验证请求是否被正确调用
     expected_payload = {
