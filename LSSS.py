@@ -80,7 +80,7 @@ def setup_secret_sharing(
 
     # 第一个秘密的访问结构：(任意用户) AND SGX
     first_secret_access_structure = []
-    for user_id in range(1, n_data_users + 1):
+    for user_id in range(1, n_participants):
         first_secret_access_structure.append([user_id, sgx_id])
     access_structures.append(first_secret_access_structure)
 
@@ -96,9 +96,14 @@ def setup_secret_sharing(
         s_secrets=secrets,
         access_structures=access_structures,
     )
-    pseudo_shares = dealer.split_secrets()
+    dealer.split_secrets()
+    results = []
+    # 收集每个参与者对应的秘密
+    for i in range(1, n_participants + 1):
+        shares = dealer.get_pseudo_shares_for_participant(i)
+        results.append(shares)
 
-    return dealer, pseudo_shares
+    return dealer, results
 
 
 def combine_secret_from_shares(dealer, pseudo_shares, secret_num, group_num):

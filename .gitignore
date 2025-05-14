@@ -8,3 +8,4 @@ dataset/
 .coverage
 Cargo.lock
 target/
+index_key_shares*.bin

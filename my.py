@@ -1,6 +1,8 @@
 import argparse
 import json
 import os
+import pickle
+import secrets
 import sys
 from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
@@ -10,6 +12,19 @@ from collections import defaultdict
 from colored import Fore, Style
 import requests
 import base64
+import LSSS
+from Crypto.Util.number import getPrime
+
+from save_shares import save_index_key_shares
+
+
+def serialize_shares(shares):
+    serialized = []
+    for x, share in shares:
+        serialized.append(
+            {"x": x, "share": base64.b64encode(share).decode("utf-8")}  # 转换为字符串
+        )
+    return serialized
 
 
 # 生成加密密钥
@@ -224,6 +239,16 @@ if __name__ == "__main__":
         threshold=0,
     )
     engine.process_whole_document_set()
+    # 使用LSSS库拆分index_key
+    dealer, index_key_shares = LSSS.setup_secret_sharing(
+        prime=getPrime(256),
+        secrets=[int.from_bytes(index_key)],
+        n_data_users=2,
+    )
+    # store all users and SGX's index_key_shares in a file
+    save_index_key_shares(index_key_shares)
+
+    sys.exit(0)
 
     # 执行搜索
     results = engine.search(args.keyword.lower())
