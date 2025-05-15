@@ -26,7 +26,7 @@ if __name__ == "__main__":
     # 访问结构：
     # 用户 OR SGX
     # (1 OR 2 OR 3 OR 4 OR 5 OR 6 OR 7 OR 8 OR 9 OR 10) AND (11)
-    access_structures = [[], [], []]
+    access_structures: list[list[list[int]]] = [[], [], []]
     for i in range(n_participants - 1):
         access_structures[0].append([i + 1, n_participants])
 
