@@ -1,8 +1,6 @@
 import argparse
 import json
 import os
-import pickle
-import secrets
 import sys
 from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
@@ -15,7 +13,7 @@ import base64
 import LSSS
 from Crypto.Util.number import getPrime
 
-from save_shares import save_index_key_shares
+from save_shares import save_dealer_sgx, save_index_key_shares
 
 
 def serialize_shares(shares):
@@ -247,7 +245,7 @@ if __name__ == "__main__":
     )
     # store all users and SGX's index_key_shares in a file
     save_index_key_shares(index_key_shares)
-
+    save_dealer_sgx(dealer)
     sys.exit(0)
 
     # 执行搜索
