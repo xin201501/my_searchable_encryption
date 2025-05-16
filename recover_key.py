@@ -19,11 +19,9 @@ def decode_dealer_base64(base64str):
 
 
 class CombineRequest(BaseModel):
-    # dealer: Dealer
     # 伪份额列表（需根据实际结构定义更详细的模型）
     # 默认恢复第一个秘密
     # 默认使用第一个访问结构组
-    dealer_base64: str
     pseudo_shares: list[int]
     secret_num: int = Field(strict=True, ge=0)
     group_num: int = Field(strict=True, ge=0)
@@ -45,7 +43,8 @@ async def combine_secret(request: CombineRequest):
 
     try:
         # 注意：实际使用时需要从持久化存储获取dealer
-        dealer = decode_dealer_base64(request.dealer_base64)
+        f = open("dealer_sgx.bin", "rb")
+        dealer = pickle.load(f)
         result = LSSS.combine_secret_from_shares(
             dealer=dealer,
             pseudo_shares=request.pseudo_shares,
