@@ -1,6 +1,5 @@
 from pydantic import ValidationError
 import pytest
-import asyncio
 from fastapi import HTTPException
 from unittest.mock import patch, MagicMock
 from recover_key import combine_secret, CombineRequest  # 假设模型定义在models模块

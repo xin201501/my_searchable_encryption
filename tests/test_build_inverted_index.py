@@ -1,8 +1,7 @@
 import pytest
-from collections import defaultdict
 from unittest.mock import call
 from my import EncryptedSearchEngine  # 注意这里直接导入被mock的函数
-import my
+import encrypt_keyword
 
 
 @pytest.fixture
@@ -11,8 +10,12 @@ def search_engine(mocker):
     engine = EncryptedSearchEngine(
         file_key="test_key", index_key="test_key", dataset_path="/dev/null", threshold=0
     )
-    mocker.patch("my.symmetric_encryption_for_keyword")  # 正确mock模块级函数
-    my.symmetric_encryption_for_keyword.side_effect = lambda _, x: f"enc_{x}"
+    mocker.patch(
+        "encrypt_keyword.symmetric_encryption_for_keyword"
+    )  # 正确mock模块级函数
+    encrypt_keyword.symmetric_encryption_for_keyword.side_effect = (
+        lambda _, x: f"enc_{x}"
+    )
     return engine
 
 
@@ -25,7 +28,7 @@ class TestBuildInvertedIndex:
 
         # Then
         assert not search_engine._EncryptedSearchEngine__inverted_index
-        my.symmetric_encryption_for_keyword.assert_not_called()  # 直接使用被mock的函数
+        encrypt_keyword.symmetric_encryption_for_keyword.assert_not_called()  # 直接使用被mock的函数
 
     def test_single_document_single_word(self, search_engine):
         """场景2: 单文档单关键词生成正确索引结构"""
@@ -34,7 +37,7 @@ class TestBuildInvertedIndex:
             1: {"apple": 3}
         }
         search_engine._EncryptedSearchEngine__words_appearance_time = {"apple": 3}
-        my.symmetric_encryption_for_keyword.side_effect = (
+        encrypt_keyword.symmetric_encryption_for_keyword.side_effect = (
             lambda _, x: f"enc_{x}"
         )  # 直接配置mock
 
@@ -47,7 +50,7 @@ class TestBuildInvertedIndex:
             call("test_key", "3"),
             call("test_key", "1"),
         ]
-        my.symmetric_encryption_for_keyword.assert_has_calls(
+        encrypt_keyword.symmetric_encryption_for_keyword.assert_has_calls(
             expected_calls, any_order=True
         )
         assert search_engine._EncryptedSearchEngine__inverted_index["enc_apple"] == [
@@ -100,7 +103,8 @@ class TestBuildInvertedIndex:
         # Then
         expected_params = ["python", "10", "1001"]
         assert expected_params == [
-            args[0][1] for args in my.symmetric_encryption_for_keyword.call_args_list
+            args[0][1]
+            for args in encrypt_keyword.symmetric_encryption_for_keyword.call_args_list
         ]
 
     def test_single_doc_with_words_less_than_threshold(self, search_engine):

@@ -1,6 +1,7 @@
 import json
 import pytest
-from my import EncryptedSearchEngine, symmetric_decryption_for_keyword
+from encrypt_keyword import symmetric_decryption_for_keyword
+from my import EncryptedSearchEngine
 
 # 固定测试密钥（32字节）
 TEST_FILE_KEY = b"1234567891234567"  # 替换实际生成的32字节密钥

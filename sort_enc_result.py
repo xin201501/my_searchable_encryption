@@ -1,5 +1,5 @@
 import base64
-import my
+import encrypt_keyword
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import List, Tuple
@@ -9,8 +9,12 @@ def sort_enc_result(enc_result_list, index_key):
     # 先解密enc_result_list
     plain_result_list = []
     for enc_result in enc_result_list:
-        plain_tf_str = my.symmetric_decryption_for_keyword(index_key, enc_result[0])
-        plain_doc_id_str = my.symmetric_decryption_for_keyword(index_key, enc_result[1])
+        plain_tf_str = encrypt_keyword.symmetric_decryption_for_keyword(
+            index_key, enc_result[0]
+        )
+        plain_doc_id_str = encrypt_keyword.symmetric_decryption_for_keyword(
+            index_key, enc_result[1]
+        )
         plain_tf = int(plain_tf_str)
         plain_doc_id = int(plain_doc_id_str)
         plain_result = (plain_tf, plain_doc_id)

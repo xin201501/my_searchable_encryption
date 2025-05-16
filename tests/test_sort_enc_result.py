@@ -11,7 +11,7 @@ from pydantic import ValidationError
 @pytest.fixture
 def mock_decryption(mocker):
     return mocker.patch(
-        "my.symmetric_decryption_for_keyword",
+        "encrypt_keyword.symmetric_decryption_for_keyword",
         side_effect=lambda key, val: {
             "enc_tf_A": "5",
             "enc_doc1": "1001",

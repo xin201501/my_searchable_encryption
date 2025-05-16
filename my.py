@@ -4,7 +4,6 @@ import os
 import sys
 from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
-from Crypto.Util.Padding import pad, unpad
 import re
 from collections import defaultdict
 from colored import Fore, Style
@@ -12,7 +11,7 @@ import requests
 import base64
 import LSSS
 from Crypto.Util.number import getPrime
-
+import encrypt_keyword
 from save_shares import save_dealer_sgx, save_index_key_shares
 
 
@@ -50,23 +49,6 @@ def decrypt_doc(encrypted_data, key):
     ciphertext = encrypted_data[32:]
     cipher = AES.new(key, AES.MODE_GCM, nonce=nonce)
     return cipher.decrypt_and_verify(ciphertext, tag).decode("utf-8")
-
-
-def symmetric_encryption_for_keyword(key, word):
-    # 使用AES加密算法进行加密
-    cipher = AES.new(key, AES.MODE_ECB)
-    # 添加PKCS7填充
-    padded_data = pad(word.encode(), AES.block_size)
-    ciphertext = cipher.encrypt(padded_data)
-    return ciphertext
-
-
-def symmetric_decryption_for_keyword(key, word_enc):
-    # 使用AES解密算法进行解密
-    cipher = AES.new(key, AES.MODE_ECB)
-    decrypted_padded = cipher.decrypt(word_enc)
-    # 移除填充
-    return unpad(decrypted_padded, AES.block_size).decode()
 
 
 # 构建加密索引
@@ -168,7 +150,9 @@ class EncryptedSearchEngine:
         # 初始化倒排索引的关键字值
         for word in self.__choose_out_keyword():
             # 对关键词进行确定性加密处理
-            word_enc = symmetric_encryption_for_keyword(self.__index_key, word)
+            word_enc = encrypt_keyword.symmetric_encryption_for_keyword(
+                self.__index_key, word
+            )
             self.__inverted_index[word_enc] = []
 
     def __build_inverted_index(self):
@@ -182,13 +166,15 @@ class EncryptedSearchEngine:
                 if self.__words_appearance_time[word] <= self.__threshold:
                     continue
                 # 对关键词进行确定性加密处理
-                word_enc = symmetric_encryption_for_keyword(self.__index_key, word)
+                word_enc = encrypt_keyword.symmetric_encryption_for_keyword(
+                    self.__index_key, word
+                )
                 # 对词频进行加密
-                count_enc = symmetric_encryption_for_keyword(
+                count_enc = encrypt_keyword.symmetric_encryption_for_keyword(
                     self.__index_key, str(count)
                 )
                 # 对文档ID进行加密
-                doc_id_enc = symmetric_encryption_for_keyword(
+                doc_id_enc = encrypt_keyword.symmetric_encryption_for_keyword(
                     self.__index_key, str(doc_id)
                 )
                 # 将加密后的词频和文档ID对添加到倒排索引中
@@ -201,7 +187,9 @@ class EncryptedSearchEngine:
 
     def search(self, keyword: str):  # 返回词频——文档对
         # 加密查询关键词
-        token = symmetric_encryption_for_keyword(self.__index_key, keyword.lower())
+        token = encrypt_keyword.symmetric_encryption_for_keyword(
+            self.__index_key, keyword.lower()
+        )
         tf_enc_and_doc_id_enc_structs = self.__inverted_index.get(token, [])
         return tf_enc_and_doc_id_enc_structs
 
