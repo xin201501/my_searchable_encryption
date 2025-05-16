@@ -79,3 +79,7 @@ async def handle_search_request(request: QueryRequest):
     except Exception as e:
         # 添加具体的异常处理逻辑
         raise RuntimeError(f"Search failed: {str(e)}")
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8001)
