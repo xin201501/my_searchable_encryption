@@ -117,7 +117,7 @@ def combine_secret_from_shares(dealer, pseudo_shares, secret_num, group_num):
     :return: 恢复的秘密值
     """
     combined_secret = dealer.combine_secret(
-        secret_num, group_num, pseudo_shares[secret_num][group_num]
+        secret_num, group_num, pseudo_shares
     )
 
     return combined_secret

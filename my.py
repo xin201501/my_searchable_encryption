@@ -1,6 +1,7 @@
 import argparse
 import json
 import os
+import pickle
 import sys
 from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
@@ -196,6 +197,10 @@ class EncryptedSearchEngine:
     def decrypt_document(self, doc_id):
         return decrypt_doc(self.__encrypted_docs[doc_id], self.__file_key)
 
+    def dump_index(self, file_path):
+        with open(file_path, "wb") as f:
+            pickle.dump(self.__inverted_index, f)
+
 
 # 使用示例
 if __name__ == "__main__":
@@ -225,15 +230,21 @@ if __name__ == "__main__":
         threshold=0,
     )
     engine.process_whole_document_set()
+
     # 使用LSSS库拆分index_key
     dealer, index_key_shares = LSSS.setup_secret_sharing(
         prime=getPrime(256),
         secrets=[int.from_bytes(index_key)],
         n_data_users=2,
     )
+
     # store all users and SGX's index_key_shares in a file
     save_index_key_shares(index_key_shares)
     save_dealer_sgx(dealer)
+
+    # dump index to a file
+    engine.dump_index("index.bin")
+
     sys.exit(0)
 
     # 执行搜索

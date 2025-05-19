@@ -10,3 +10,4 @@ Cargo.lock
 target/
 index_key_shares*.bin
 dealer_sgx.bin
+index.bin

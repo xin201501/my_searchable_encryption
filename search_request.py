@@ -13,7 +13,7 @@ class QueryRequest(BaseModel):
     # 伪份额列表（需根据实际结构定义更详细的模型）
     # 默认恢复第一个秘密
     # 默认使用第一个访问结构组
-    pseudo_shares: list[int]
+    pseudo_shares_base64: str = Field(min_length=1)
     secret_num: int = Field(strict=True, ge=0)
     group_num: int = Field(strict=True, ge=0)
     query_keyword: str
@@ -40,9 +40,9 @@ def generate_token(index_key, query_keyword):
     return query_keyword_enc
 
 
-def search_encrypted_index_request(token: bytes) -> list[tuple[bytes, bytes]]:
+def search_encrypted_index_request(token: bytes) -> str:
     """服务器端搜索"""
-    payload = {"token": base64.b64encode(token).decode("utf-8")}
+    payload = {"token_base64": base64.b64encode(token).decode("utf-8")}
     try:
         response = requests.post(
             url="http://localhost:8004/search_server",
@@ -62,24 +62,38 @@ app = FastAPI()
 async def handle_search_request(request: QueryRequest):
     """请求处理主函数"""
     try:
+        pseudo_shares_user = base64.b64decode(request.pseudo_shares_base64)
+        with open("index_key_shares_sgx.bin", "rb") as f:
+            pseudo_shares_sgx = pickle.load(f)
+
+        pseudo_shares = [
+            pseudo_shares_user,
+            pseudo_shares_sgx.get((request.secret_num, request.group_num)),
+        ]
+
         # 1. 组合密钥
-        index_key = combine_secret(
-            request.pseudo_shares, request.secret_num, request.group_num
-        )
+        index_key: bytes = combine_secret(
+            pseudo_shares, request.secret_num, request.group_num
+        ).to_bytes(16)
 
         # 2. 生成令牌
         token = generate_token(index_key, request.query_keyword)
 
         # 3. 服务器端搜索（示例调用）
-        search_results = search_encrypted_index_request(token)
+        search_results_base64 = search_encrypted_index_request(token)
+        search_results = pickle.loads(base64.b64decode(search_results_base64))
 
         # 5. 排序后返回
-        return sort_enc_result(search_results, index_key)
+        return {
+            "sorted_results": sort_enc_result(search_results, index_key),
+        }
 
     except Exception as e:
         # 添加具体的异常处理逻辑
         raise RuntimeError(f"Search failed: {str(e)}")
 
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+
+    uvicorn.run(app, host="0.0.0.0", port=8001, log_level="debug")

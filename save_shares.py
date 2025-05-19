@@ -3,10 +3,10 @@ from pydantic import BaseModel, Field
 
 
 class IndexKeyShares(BaseModel):
-    shares: list[int] = Field(min_length=1)
+    shares: list[dict] = Field(min_length=1)
 
 
-def save_index_key_shares(index_key_shares: list[int]):
+def save_index_key_shares(index_key_shares: list[dict]):
     """
     将LSSS生成的密钥分片序列化到二进制文件
 
