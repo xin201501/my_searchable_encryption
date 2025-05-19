@@ -2,7 +2,6 @@ import base64
 import encrypt_keyword
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from typing import List, Tuple
 
 
 def sort_enc_result(enc_result_list, index_key):
@@ -28,7 +27,7 @@ app = FastAPI()
 
 
 class SortRequest(BaseModel):
-    encrypted_results: List[Tuple[str, str]]  # (加密tf, 加密docid)元组列表
+    encrypted_results: list[tuple[str, str]]  # (加密tf, 加密docid)元组列表
     index_key: str  # 解密用的密钥
 
 
