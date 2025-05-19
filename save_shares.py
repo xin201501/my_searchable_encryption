@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field
 
 
 class IndexKeyShares(BaseModel):
-    shares: list[dict[tuple[int, int], int]] = Field(min_length=1)
+    shares: list[dict[tuple[int, int], bytes]] = Field(min_length=1)
 
 
 def save_index_key_shares(index_key_shares: list[dict]):
