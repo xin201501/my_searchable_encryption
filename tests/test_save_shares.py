@@ -1,14 +1,13 @@
 import pydantic
 import pytest
 from unittest.mock import mock_open, call
-import pickle
 from save_shares import save_index_key_shares
 
 
 @pytest.fixture
 def valid_input():
     """标准有效输入数据"""
-    return [1, 2, 3]
+    return [{(0, 0): 1}, {(0, 1): 2}, {(1, 0): 3}]
 
 
 def test_normal_case(mocker, valid_input):
@@ -40,7 +39,7 @@ def test_sgx_only_case(mocker):
     mocker.patch("builtins.open", mock_open())
     mock_pickle = mocker.patch("pickle.dump")
 
-    input_data = [3]
+    input_data = [{(1, 0): 3}]
     save_index_key_shares(input_data)
 
     # 验证用户文件未生成
@@ -61,9 +60,8 @@ def test_empty_list_case():
 @pytest.mark.parametrize(
     "invalid_input",
     [
-        ["not_a_number"],  # 列表包含字符串
-        [{"user1": 1}],  # 列表包含字典
-        [{"valid": 1}, 123],  # 混合有效无效数据
+        [{(0, 0): "not_a_number"}],  # 列表包含字符串
+        [1],  # 无secret number和group number
     ],
 )
 def test_invalid_data_type(mocker, invalid_input):
