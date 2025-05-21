@@ -14,6 +14,7 @@ import LSSS
 from Crypto.Util.number import getPrime
 import encrypt_keyword
 from save_shares import save_dealer_sgx, save_index_key_shares
+from collections import Counter
 
 
 def serialize_shares(shares):
@@ -65,6 +66,7 @@ class EncryptedSearchEngine:
         )  # 记录每个关键词出现在每个文档中的次数
         self.__dataset_path = dataset_path
         self.__threshold = threshold
+        self.__word_pattern = re.compile(r"\b[\w-]+\b")
 
     def __load_documents(self):
         documents = []
@@ -109,12 +111,12 @@ class EncryptedSearchEngine:
             None: 结果直接更新类成员变量words_appearance_time_per_doc
         """
         # 使用正则表达式提取全部单词并转换为小写
-        words = re.findall(r"\b[\w-]+\b", text.lower())
+        words = self.__word_pattern.findall(text.lower())
 
         # 统计每个单词在当前文档中的出现次数
         # words_appearance_time_per_doc结构为: Dict[docid][word] = count
-        for word in words:
-            self.__word_appearance_time_per_doc[docid][word] += 1
+        word_counts = Counter(words)
+        self.__word_appearance_time_per_doc[docid].update(word_counts)
 
     def __count_keyword_appearance(self):
         """
