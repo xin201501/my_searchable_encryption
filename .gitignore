@@ -11,3 +11,6 @@ target/
 index_key_shares*.bin
 dealer_sgx.bin
 index.bin
+*.zip
+*.stats
+*.stats2

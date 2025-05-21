@@ -10,6 +10,8 @@ import sys
 
 if "../multi-secret-sharing/python" not in sys.path:
     sys.path.append("../multi-secret-sharing/python")
+if "/root/multi-secret-sharing/python" not in sys.path:
+    sys.path.append("/root/multi-secret-sharing/python")
 
 
 def decode_dealer_base64(base64str):

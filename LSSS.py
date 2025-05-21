@@ -5,6 +5,8 @@ import sys
 
 if "../multi-secret-sharing/python" not in sys.path:
     sys.path.append("../multi-secret-sharing/python")
+if "/root/multi-secret-sharing/python" not in sys.path:
+    sys.path.append("/root/multi-secret-sharing/python")
 import multisecret.MultiSecretRoyAdhikari
 
 from Crypto.Util.number import getPrime
@@ -116,8 +118,6 @@ def combine_secret_from_shares(dealer, pseudo_shares, secret_num, group_num):
     :param group_num: 访问结构组索引（默认0）
     :return: 恢复的秘密值
     """
-    combined_secret = dealer.combine_secret(
-        secret_num, group_num, pseudo_shares
-    )
+    combined_secret = dealer.combine_secret(secret_num, group_num, pseudo_shares)
 
     return combined_secret
