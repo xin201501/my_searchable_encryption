@@ -10,5 +10,6 @@ crate-type = ["cdylib"]
 
 [dependencies]
 aes = "0.8.4"
+aes-gcm = "0.10.3"
 ecb = {version = "0.1.2",features = ["alloc"]}
 pyo3 = "0.24.0"

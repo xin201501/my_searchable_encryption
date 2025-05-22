@@ -15,6 +15,7 @@ from Crypto.Util.number import getPrime
 import encrypt_keyword
 from save_shares import save_dealer_sgx, save_index_key_shares
 from collections import Counter
+import enc_rust
 
 
 def serialize_shares(shares):
@@ -37,20 +38,12 @@ def generate_key(key_length=128):
 
 # 加密文档内容
 def encrypt_doc(data, key):
-    cipher = AES.new(key, AES.MODE_GCM)
-    ciphertext, tag = cipher.encrypt_and_digest(data.encode("utf-8"))
-    return cipher.nonce + tag + ciphertext
+    return enc_rust.aes_gcm_encrypt(key, data)
 
 
 # 解密文档内容
 def decrypt_doc(encrypted_data, key):
-    if len(encrypted_data) < 32:
-        raise ValueError("Invalid encrypted data")
-    nonce = encrypted_data[:16]
-    tag = encrypted_data[16:32]
-    ciphertext = encrypted_data[32:]
-    cipher = AES.new(key, AES.MODE_GCM, nonce=nonce)
-    return cipher.decrypt_and_verify(ciphertext, tag).decode("utf-8")
+    return enc_rust.aes_gcm_decrypt(key, encrypted_data)
 
 
 # 构建加密索引
