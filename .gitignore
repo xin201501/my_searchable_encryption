@@ -15,3 +15,5 @@ index.bin
 *.stats
 *.stats2
 share/
+examples/
+ippcptest
