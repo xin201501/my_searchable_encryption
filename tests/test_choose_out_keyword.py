@@ -14,7 +14,7 @@ def engine():
         file_key=valid_key, index_key=valid_key, dataset_path="/dev/null", threshold=10
     )
     # 注入初始测试数据到私有属性
-    engine._EncryptedSearchEngine__words_appearance_time = {
+    engine.words_appearance_time = { # type: ignore
         "ai": 15,
         "blockchain": 9,
         "quantum": 20,
@@ -25,7 +25,7 @@ def engine():
 
 def test_threshold_boundary(engine):
     """验证精确边界条件（threshold=10）"""
-    engine._EncryptedSearchEngine__threshold = 10
+    engine.threshold = 10
     result = engine._EncryptedSearchEngine__choose_out_keyword()
     # 验证应包含的项
     assert "ai" in result
@@ -40,10 +40,10 @@ def test_threshold_boundary(engine):
 def test_mixed_frequency(engine):
     """测试动态更新字典后的混合场景"""
     # 更新测试数据
-    engine._EncryptedSearchEngine__words_appearance_time.update({"iot": 12, "vr": 5})
+    engine.words_appearance_time.update({"iot": 12, "vr": 5})
     # 将ai的count更新为10
-    engine._EncryptedSearchEngine__words_appearance_time.update({"ai": 10})
-    engine._EncryptedSearchEngine__threshold = 12
+    engine.words_appearance_time.update({"ai": 10})
+    engine.threshold = 12
     result = engine._EncryptedSearchEngine__choose_out_keyword()
     # 验证排序无关的内容匹配，ai 值已更新为10，小于threshold，应该被排除
     assert set(result) == {"quantum"}
@@ -59,7 +59,7 @@ def test_mixed_frequency(engine):
 )
 def test_various_thresholds(engine, threshold, expected):
     """参数化测试不同阈值场景"""
-    engine._EncryptedSearchEngine__threshold = threshold
+    engine.threshold = threshold
     assert sorted(engine._EncryptedSearchEngine__choose_out_keyword()) == sorted(
         expected
     )
@@ -68,8 +68,8 @@ def test_various_thresholds(engine, threshold, expected):
 def test_zero_count_edge_case(engine):
     """测试包含count=0的特殊情况"""
     # 添加count=0的测试数据
-    engine._EncryptedSearchEngine__words_appearance_time["nft"] = 0
-    engine._EncryptedSearchEngine__threshold = 0
+    engine.words_appearance_time["nft"] = 0
+    engine.threshold = 0
     result = engine._EncryptedSearchEngine__choose_out_keyword()
     # 验证包含正常count>0的项
     assert "ai" in result

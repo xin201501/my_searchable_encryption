@@ -32,8 +32,14 @@ def test_news_processing():
     assert isinstance(result, list)
     assert len(result) == 2
     #验证最后输出
-    assert result[0] == 'Test News\n\nFirst paragraph\nSecond paragraph'
-    assert result[1] == 'Another Test News\n\nAnother first paragraph\nAnother second paragraph\nAnother third paragraph'
+    assert result[0] == {
+        'title': 'Test News',
+        'text': 'First paragraph\nSecond paragraph'
+    }
+    assert result[1] == {
+        'title': 'Another Test News',
+        'text': 'Another first paragraph\nAnother second paragraph\nAnother third paragraph'
+    }
 
 def test_empty_news():
     # 测试空数据情况

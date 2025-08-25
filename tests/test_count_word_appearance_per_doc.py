@@ -36,10 +36,10 @@ class TestCountWordAppearance:
     def test_word_count_scenarios(self, test_id, docid, text, expected):
         """测试用例集合（参数化驱动）"""
         # 执行被测方法
-        self.engine._EncryptedSearchEngine__count_word_appearance_per_doc(docid, text)
+        self.engine._EncryptedSearchEngine__count_word_appearance_per_doc(docid, text) # type: ignore
 
         # 获取实际结果
-        actual = self.engine._EncryptedSearchEngine__word_appearance_time_per_doc[docid]
+        actual = self.engine.word_appearance_time_per_doc[docid]
 
         # 断言验证
         assert actual == expected, f"测试用例TC{test_id:02d}验证失败"
