@@ -1,5 +1,8 @@
 use pyo3::prelude::*;
+use mimalloc::MiMalloc;
 
+#[global_allocator]
+static GLOBAL: MiMalloc = MiMalloc;
 /// 使用AES-128 ECB模式加密明文字符串
 ///
 /// 参数：
