@@ -1,4 +1,5 @@
 import base64
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from pydantic import BaseModel, Field
 import requests
@@ -65,7 +66,28 @@ def search_encrypted_index_request(token: bytes) -> str:
         raise Exception(f"Error: Failed to send HTTP request to Cloud.")
 
 
-app = FastAPI()
+DEFAULT_SGX_SHARE_PATH = "index_key_shares_sgx.bin"
+
+pseudo_shares_sgx: dict[tuple[int, int], bytes] = {}
+
+
+@asynccontextmanager
+async def load_sgx_shares(app: FastAPI):
+    try:
+        shares: dict[tuple[int, int], bytes] = pickle.load(
+            open(DEFAULT_SGX_SHARE_PATH, "rb")
+        )
+        global pseudo_shares_sgx
+        pseudo_shares_sgx = shares
+    except:
+        pass
+
+    yield
+
+    pseudo_shares_sgx = {}
+
+
+app = FastAPI(lifespan=load_sgx_shares)
 
 
 @app.post("/search")
@@ -73,8 +95,6 @@ async def handle_search_request(request: QueryRequest):
     """请求处理主函数"""
     try:
         pseudo_shares_user = base64.b64decode(request.pseudo_shares_base64)
-        with open("index_key_shares_sgx.bin", "rb") as f:
-            pseudo_shares_sgx = pickle.load(f)
 
         pseudo_shares = [
             pseudo_shares_user,
@@ -118,11 +138,9 @@ async def get_file(request: GetFileRequest):
         if file_data_base64 is None:
             return {"file_data": None}
         enc_file_data = base64.b64decode(file_data_base64)
-        
+
         # 1. 组合密钥
         pseudo_shares_user = base64.b64decode(request.file_key_share)
-        with open("index_key_shares_sgx.bin", "rb") as f:
-            pseudo_shares_sgx = pickle.load(f)
 
         pseudo_shares = [
             pseudo_shares_user,
