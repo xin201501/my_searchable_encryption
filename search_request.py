@@ -7,6 +7,7 @@ import pickle
 
 from encrypt_keyword import symmetric_encryption_for_keyword
 from sort_enc_result import sort_enc_result
+import enc_rust
 
 
 class QueryRequest(BaseModel):
@@ -17,6 +18,11 @@ class QueryRequest(BaseModel):
     secret_num: int = Field(strict=True, ge=0)
     group_num: int = Field(strict=True, ge=0)
     query_keyword: str
+
+
+class GetFileRequest(BaseModel):
+    file_id: int = Field(strict=True, ge=0)
+    file_key: str = Field(strict=True, min_length=16)
 
 
 def combine_secret(pseudo_shares: list[int], secret_num: int, group_num: int):
@@ -91,6 +97,30 @@ async def handle_search_request(request: QueryRequest):
     except Exception as e:
         # 添加具体的异常处理逻辑
         raise RuntimeError(f"Search failed: {str(e)}")
+
+
+@app.post("/get_file")
+async def get_file(get_file_request: GetFileRequest):
+    # 服务器端获取文件
+    try:
+        payload = {"file_id": get_file_request.file_id}
+        response = requests.post(
+            url="http://localhost:8004/get_file",
+            json=payload,
+        )
+        response.raise_for_status()  # 如果响应状态码不是2xx，则引发异常
+        file_data_base64 = response.json()["file_data_base64"]
+        # 解密文件
+        if file_data_base64 is None:
+            return {"file_data": None}
+        enc_file_data = base64.b64decode(file_data_base64)
+        file_data = enc_rust.aes_gcm_decrypt(get_file_request.file_key, enc_file_data)
+        return {"file_data": file_data}
+    except requests.exceptions.RequestException:
+        raise Exception(f"Error: Failed to send HTTP request to Cloud.")
+    except Exception as e:
+        # 添加具体的异常处理逻辑
+        raise RuntimeError(f"Get file failed: {str(e)}")
 
 
 if __name__ == "__main__":

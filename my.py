@@ -1,7 +1,9 @@
 import argparse
 import json
+from multiprocessing import Pool
 import os
 import pickle
+import shutil
 import sys
 from Crypto.Random import get_random_bytes
 import re
@@ -46,7 +48,7 @@ def decrypt_doc(encrypted_data, key):
 
 
 # 构建加密索引
-class EncryptedSearchEngine:
+class EncryptedIndexBuilder:
     def __init__(self, file_key, index_key, dataset_path, threshold=10):
         self.file_key = file_key
         self.index_key = index_key
@@ -180,20 +182,45 @@ class EncryptedSearchEngine:
         encrypted = encrypt_doc(text, self.file_key)
         self.encrypted_docs[doc_id] = encrypted
 
-    def search(self, keyword: str):  # 返回词频——文档对
-        # 加密查询关键词
-        token = encrypt_keyword.symmetric_encryption_for_keyword(
-            self.index_key, keyword.lower()
-        )
+    def dump_index(self, file_path):
+        with open(file_path, "wb") as f:
+            pickle.dump(self.inverted_index, f)
+
+    @staticmethod
+    def dump_doc(doc_id, doc, file_dir):
+        with open(os.path.join(file_dir, str(doc_id)), "wb") as f:
+            f.write(doc)
+
+    def dump_encrypted_docs(self, file_dir):
+        # 新建一个文件夹
+        if os.path.exists(file_dir):
+            # 删除文件夹及文件夹下的所有文件
+            shutil.rmtree(file_dir)
+        os.mkdir(file_dir)
+
+        # 每个doc单独存储在名为doc_id的文件中
+        # 多进程写入
+
+        with Pool() as pool:
+            pool.starmap(EncryptedIndexBuilder.dump_doc, [(doc_id, doc, file_dir) for doc_id, doc in self.encrypted_docs.items()])
+
+
+class Searcher:
+    def __init__(self, index_path, file_dir, file_key):
+        self.file_key = file_key
+        self.file_dir = file_dir
+        with open(index_path, "rb") as f:
+            self.inverted_index = pickle.load(f)
+
+    def search(self, token: str):  # 返回词频——文档对
         tf_enc_and_doc_id_enc_structs = self.inverted_index.get(token, [])
         return tf_enc_and_doc_id_enc_structs
 
     def decrypt_document(self, doc_id):
-        return decrypt_doc(self.encrypted_docs[doc_id], self.file_key)
+        with open(os.path.join(self.file_dir, str(doc_id)), "rb") as f:
+            encrypted_doc = f.read()
 
-    def dump_index(self, file_path):
-        with open(file_path, "wb") as f:
-            pickle.dump(self.inverted_index, f)
+        return decrypt_doc(encrypted_doc, self.file_key)
 
 
 # 使用示例
@@ -217,13 +244,13 @@ if __name__ == "__main__":
     # 创建加密引擎
     file_key = generate_key()
     index_key = generate_key()
-    engine = EncryptedSearchEngine(
+    index_builder = EncryptedIndexBuilder(
         file_key=file_key,
         index_key=index_key,
         dataset_path=args.dataset,
         threshold=0,
     )
-    engine.process_whole_document_set()
+    index_builder.process_whole_document_set()
 
     # 使用LSSS库拆分index_key
     dealer, index_key_shares = LSSS.setup_secret_sharing(
@@ -237,11 +264,21 @@ if __name__ == "__main__":
     save_dealer_sgx(dealer)
 
     # dump index to a file
-    engine.dump_index("index.bin")
+    index_builder.dump_index("index.bin")
 
+    index_builder.dump_encrypted_docs("encrypted_docs")
 
     # 执行搜索
-    results = engine.search(args.keyword.lower())
+    search_engine = Searcher(
+        index_path="index.bin",
+        file_dir="encrypted_docs",
+        file_key=file_key,
+    )
+    token = encrypt_keyword.symmetric_encryption_for_keyword(
+        index_key, args.keyword.lower()
+    )
+
+    results = search_engine.search(token)
     print(f"Found {Fore.red}{len(results)}{Style.reset} document(s):")
     # 发送HTTP请求
     # 将 results 和 index_key 作为 JSON 数据发送到服务器
@@ -269,6 +306,6 @@ if __name__ == "__main__":
             print(
                 f"Keyword appears {Fore.red}{tf}{Style.reset} times in document {Fore.green}{doc_id}{Style.reset}"
             )
-            print(f"Content: \n{engine.decrypt_document(doc_id)}")
+            print(f"Content: \n{search_engine.decrypt_document(doc_id)}")
     except requests.exceptions.RequestException as e:
         print(f"{Fore.red}Error: Failed to send HTTP request.{Style.reset}")

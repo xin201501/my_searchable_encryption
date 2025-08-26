@@ -1,4 +1,4 @@
-from my import EncryptedSearchEngine, generate_key
+from my import EncryptedIndexBuilder, Searcher, generate_key
 from preprocess_finance_corpus import get_news_data, process_news
 import argparse
 import argcomplete
@@ -8,14 +8,16 @@ import base64
 import LSSS
 from Crypto.Util.number import getPrime
 from save_shares import save_dealer_sgx, save_index_key_shares
+import encrypt_keyword
 
 
-class FinanceDataSetSearchEngine(EncryptedSearchEngine):
+class FinanceDataSetIndexBuilder(EncryptedIndexBuilder):
     def __init__(self, file_key, index_key, dataset_path, threshold=10):
         super().__init__(file_key, index_key, dataset_path, threshold)
 
     def load_documents(self):
         news_df = get_news_data(self.dataset_path)
+        # print(f"Fetched {len(news_df)} news articles for {self.dataset_path}")
         corpus = process_news(news_df)
         return corpus
 
@@ -40,13 +42,13 @@ if __name__ == "__main__":
     # 创建加密引擎
     file_key = generate_key()
     index_key = generate_key()
-    engine = FinanceDataSetSearchEngine(
+    index_builder = FinanceDataSetIndexBuilder(
         file_key=file_key,
         index_key=index_key,
         dataset_path=args.company_name,
         threshold=args.threshold,
     )
-    engine.process_whole_document_set()
+    index_builder.process_whole_document_set()
 
     # 使用LSSS库拆分index_key
     dealer, index_key_shares = LSSS.setup_secret_sharing(
@@ -60,10 +62,21 @@ if __name__ == "__main__":
     save_dealer_sgx(dealer)
 
     # dump index to a file
-    engine.dump_index("index.bin")
+    index_builder.dump_index("index.bin")
 
+    index_builder.dump_encrypted_docs("encrypted_docs_finance")
+
+    token = encrypt_keyword.symmetric_encryption_for_keyword(
+        index_key, args.keyword.lower()
+    )
+
+    search_engine = Searcher(
+        index_path="index.bin",
+        file_dir="encrypted_docs_finance",
+        file_key=file_key,
+    )
     # 执行搜索
-    results = engine.search(args.keyword.lower())
+    results = search_engine.search(token)
     print(f"Found {Fore.red}{len(results)}{Style.reset} document(s):")
     # 发送HTTP请求
     # 将 results 和 index_key 作为 JSON 数据发送到服务器
@@ -91,6 +104,6 @@ if __name__ == "__main__":
             print(
                 f"Keyword appears {Fore.red}{tf}{Style.reset} times in document {Fore.green}{doc_id}{Style.reset}"
             )
-            print(f"Content: \n{engine.decrypt_document(doc_id)}")
+            print(f"Content: \n{search_engine.decrypt_document(doc_id)}")
     except requests.exceptions.RequestException as e:
         print(f"{Fore.red}Error: Failed to send HTTP request.{Style.reset}")
