@@ -22,7 +22,9 @@ class QueryRequest(BaseModel):
 
 class GetFileRequest(BaseModel):
     file_id: int = Field(strict=True, ge=0)
-    file_key: str = Field(strict=True, min_length=16)
+    file_key_share: str = Field(strict=True, min_length=16)
+    secret_num: int = Field(strict=True, ge=0)
+    group_num: int = Field(strict=True, ge=0)
 
 
 def combine_secret(pseudo_shares: list[int], secret_num: int, group_num: int):
@@ -42,7 +44,9 @@ def combine_secret(pseudo_shares: list[int], secret_num: int, group_num: int):
 
 def generate_token(index_key, query_keyword):
     """生成令牌"""
-    query_keyword_enc = symmetric_encryption_for_keyword(index_key, query_keyword)
+    query_keyword_enc = symmetric_encryption_for_keyword(
+        index_key, query_keyword.lower()
+    )
     return query_keyword_enc
 
 
@@ -100,10 +104,10 @@ async def handle_search_request(request: QueryRequest):
 
 
 @app.post("/get_file")
-async def get_file(get_file_request: GetFileRequest):
+async def get_file(request: GetFileRequest):
     # 服务器端获取文件
     try:
-        payload = {"file_id": get_file_request.file_id}
+        payload = {"file_id": request.file_id}
         response = requests.post(
             url="http://localhost:8004/get_file",
             json=payload,
@@ -114,7 +118,23 @@ async def get_file(get_file_request: GetFileRequest):
         if file_data_base64 is None:
             return {"file_data": None}
         enc_file_data = base64.b64decode(file_data_base64)
-        file_data = enc_rust.aes_gcm_decrypt(get_file_request.file_key, enc_file_data)
+        
+        # 1. 组合密钥
+        pseudo_shares_user = base64.b64decode(request.file_key_share)
+        with open("index_key_shares_sgx.bin", "rb") as f:
+            pseudo_shares_sgx = pickle.load(f)
+
+        pseudo_shares = [
+            pseudo_shares_user,
+            pseudo_shares_sgx.get((request.secret_num, request.group_num)),
+        ]
+        file_key: bytes = combine_secret(
+            pseudo_shares, request.secret_num, request.group_num
+        ).to_bytes(16)
+
+        # 2. 解密文件
+        file_data = enc_rust.aes_gcm_decrypt(file_key, enc_file_data)
+
         return {"file_data": file_data}
     except requests.exceptions.RequestException:
         raise Exception(f"Error: Failed to send HTTP request to Cloud.")

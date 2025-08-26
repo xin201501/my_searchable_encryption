@@ -6,7 +6,7 @@ class IndexKeyShares(BaseModel):
     shares: list[dict[tuple[int, int], bytes]] = Field(min_length=1)
 
 
-def save_index_key_shares(index_key_shares: list[dict]):
+def save_key_shares(index_key_shares: list[dict]):
     """
     将LSSS生成的密钥分片序列化到二进制文件
 

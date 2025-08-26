@@ -12,20 +12,24 @@ class Token(BaseModel):
     token_base64: str = Field(min_length=1)
 
 
-inverted_index = {}
+class GetFileRequest(BaseModel):
+    file_id: int = Field(strict=True, ge=0)
+
+inverted_index: dict[bytes, list] = {}
 
 
 @asynccontextmanager
 async def load_index(app: FastAPI):
     try:
         index: dict[bytes, list] = pickle.load(open(DEFAULT_INDEX_PATH, "rb"))
-        inverted_index.update(index)
+        global inverted_index
+        inverted_index = index
     except:
         pass
-    
+
     yield
 
-    inverted_index.clear()
+    inverted_index = {}
 
 
 app = FastAPI(lifespan=load_index)
@@ -38,7 +42,7 @@ async def search_server(token_base64: Token):
     # 读取index
     try:
         # 得到结果，序列化后返回
-        result = inverted_index.get(token)
+        result = inverted_index.get(token, [])
         result_bytes = pickle.dumps(result)
         result_bytes_base64 = base64.b64encode(result_bytes)
         return {"results": result_bytes_base64}
@@ -47,15 +51,16 @@ async def search_server(token_base64: Token):
         return {"results": []}
 
 
-@app.post("get_file")
-async def get_file(file_id: int):
+@app.post("/get_file")
+async def get_file(file_id: GetFileRequest):
     try:
-        with open(f"encrypted_docs_finance/doc_{file_id}", "rb") as f:
+        with open(f"encrypted_docs_finance/{file_id.file_id}", "rb") as f:
             file_data = f.read()
         file_data_base64 = base64.b64encode(file_data).decode("utf-8")
         return {"file_data_base64": file_data_base64}
     except FileNotFoundError:
         return {"file_data_base64": None}
+
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8004)

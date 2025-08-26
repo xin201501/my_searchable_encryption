@@ -7,7 +7,7 @@ import requests
 import base64
 import LSSS
 from Crypto.Util.number import getPrime
-from save_shares import save_dealer_sgx, save_index_key_shares
+from save_shares import save_dealer_sgx, save_key_shares
 import encrypt_keyword
 
 
@@ -33,9 +33,11 @@ if __name__ == "__main__":
         help="appearance threshold for a word to be a keyword",
     )
     parser.add_argument("--user_count", type=int, required=True, help="user count")
+    parser.add_argument("--keyword", type=str, help="Search keyword to look up")
     parser.add_argument(
-        "--keyword", type=str, required=True, help="Search keyword to look up"
+        "--local_search", type=bool, default=False, help="Perform local search or not"
     )
+
     argcomplete.autocomplete(parser)
     args = parser.parse_args()
 
@@ -49,22 +51,31 @@ if __name__ == "__main__":
         threshold=args.threshold,
     )
     index_builder.process_whole_document_set()
-
-    # 使用LSSS库拆分index_key
-    dealer, index_key_shares = LSSS.setup_secret_sharing(
+    
+    second_secret_access_structure = []
+    for user_id in range(1, args.user_count):
+        second_secret_access_structure.append([user_id, args.user_count + 1])
+    
+    # 使用LSSS库拆分index_key和file_key
+    dealer, key_shares = LSSS.setup_secret_sharing(
         prime=getPrime(256),
-        secrets=[int.from_bytes(index_key)],
+        secrets=[int.from_bytes(index_key), int.from_bytes(file_key)],
         n_data_users=args.user_count,
+        custom_access_structures=[second_secret_access_structure],
     )
 
     # store all users and SGX's index_key_shares in a file
-    save_index_key_shares(index_key_shares)
+    save_key_shares(key_shares)
     save_dealer_sgx(dealer)
 
     # dump index to a file
     index_builder.dump_index("index.bin")
 
     index_builder.dump_encrypted_docs("encrypted_docs_finance")
+
+    if args.local_search is False:
+        print(f"Indexing complete.")
+        exit(0)
 
     token = encrypt_keyword.symmetric_encryption_for_keyword(
         index_key, args.keyword.lower()

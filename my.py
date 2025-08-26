@@ -14,7 +14,7 @@ import base64
 import LSSS
 from Crypto.Util.number import getPrime
 import encrypt_keyword
-from save_shares import save_dealer_sgx, save_index_key_shares
+from save_shares import save_dealer_sgx, save_key_shares
 from collections import Counter
 import enc_rust
 
@@ -202,7 +202,13 @@ class EncryptedIndexBuilder:
         # 多进程写入
 
         with Pool() as pool:
-            pool.starmap(EncryptedIndexBuilder.dump_doc, [(doc_id, doc, file_dir) for doc_id, doc in self.encrypted_docs.items()])
+            pool.starmap(
+                EncryptedIndexBuilder.dump_doc,
+                [
+                    (doc_id, doc, file_dir)
+                    for doc_id, doc in self.encrypted_docs.items()
+                ],
+            )
 
 
 class Searcher:
@@ -260,7 +266,7 @@ if __name__ == "__main__":
     )
 
     # store all users and SGX's index_key_shares in a file
-    save_index_key_shares(index_key_shares)
+    save_key_shares(index_key_shares)
     save_dealer_sgx(dealer)
 
     # dump index to a file
