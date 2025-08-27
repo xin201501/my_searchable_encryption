@@ -15,10 +15,12 @@ class FinanceDataSetIndexBuilder(EncryptedIndexBuilder):
     def __init__(self, file_key, index_key, dataset_path, threshold=10):
         super().__init__(file_key, index_key, dataset_path, threshold)
 
-    def load_documents(self):
+    def load_documents(self, count: int | None = None):
         news_df = get_news_data(self.dataset_path)
         # print(f"Fetched {len(news_df)} news articles for {self.dataset_path}")
         corpus = process_news(news_df)
+        if count:
+            corpus = corpus[:count]
         return corpus
 
 
@@ -34,6 +36,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("--user_count", type=int, required=True, help="user count")
     parser.add_argument("--keyword", type=str, help="Search keyword to look up")
+    parser.add_argument("--doc_count", type=int, help="doc count")
     parser.add_argument(
         "--local_search", type=bool, default=False, help="Perform local search or not"
     )
@@ -50,12 +53,12 @@ if __name__ == "__main__":
         dataset_path=args.company_name,
         threshold=args.threshold,
     )
-    index_builder.process_whole_document_set()
-    
+    index_builder.process_whole_document_set(load_count=args.doc_count)
+
     second_secret_access_structure = []
     for user_id in range(1, args.user_count):
         second_secret_access_structure.append([user_id, args.user_count + 1])
-    
+
     # 使用LSSS库拆分index_key和file_key
     dealer, key_shares = LSSS.setup_secret_sharing(
         prime=getPrime(256),

@@ -1,20 +1,20 @@
 import pytest
 from Crypto.Random import get_random_bytes
 
-from my import EncryptedSearchEngine
+from my import EncryptedIndexBuilder
 
 
 @pytest.fixture
 def engine():
-    """提供预配置的EncryptedSearchEngine实例"""
+    """提供预配置的EncryptedIndexBuilder实例"""
     # 生成符合AES-128要求的有效密钥
     valid_key = get_random_bytes(16)
     # 初始化引擎实例（使用空数据集路径）
-    engine = EncryptedSearchEngine(
+    engine = EncryptedIndexBuilder(
         file_key=valid_key, index_key=valid_key, dataset_path="/dev/null", threshold=10
     )
     # 注入初始测试数据到私有属性
-    engine.words_appearance_time = { # type: ignore
+    engine.words_appearance_time = {  # type: ignore
         "ai": 15,
         "blockchain": 9,
         "quantum": 20,
@@ -26,7 +26,7 @@ def engine():
 def test_threshold_boundary(engine):
     """验证精确边界条件（threshold=10）"""
     engine.threshold = 10
-    result = engine._EncryptedSearchEngine__choose_out_keyword()
+    result = engine._EncryptedIndexBuilder__choose_out_keyword()
     # 验证应包含的项
     assert "ai" in result
     assert "quantum" in result
@@ -44,7 +44,7 @@ def test_mixed_frequency(engine):
     # 将ai的count更新为10
     engine.words_appearance_time.update({"ai": 10})
     engine.threshold = 12
-    result = engine._EncryptedSearchEngine__choose_out_keyword()
+    result = engine._EncryptedIndexBuilder__choose_out_keyword()
     # 验证排序无关的内容匹配，ai 值已更新为10，小于threshold，应该被排除
     assert set(result) == {"quantum"}
 
@@ -60,7 +60,7 @@ def test_mixed_frequency(engine):
 def test_various_thresholds(engine, threshold, expected):
     """参数化测试不同阈值场景"""
     engine.threshold = threshold
-    assert sorted(engine._EncryptedSearchEngine__choose_out_keyword()) == sorted(
+    assert sorted(engine._EncryptedIndexBuilder__choose_out_keyword()) == sorted(
         expected
     )
 
@@ -70,7 +70,7 @@ def test_zero_count_edge_case(engine):
     # 添加count=0的测试数据
     engine.words_appearance_time["nft"] = 0
     engine.threshold = 0
-    result = engine._EncryptedSearchEngine__choose_out_keyword()
+    result = engine._EncryptedIndexBuilder__choose_out_keyword()
     # 验证包含正常count>0的项
     assert "ai" in result
     assert "quantum" in result

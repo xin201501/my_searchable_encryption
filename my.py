@@ -62,7 +62,7 @@ class EncryptedIndexBuilder:
         self.threshold = threshold
         self.word_pattern = re.compile(r"\b[\w-]+\b")
 
-    def load_documents(self):
+    def load_documents(self, count: int | None = None):
         documents = []
         with open(self.dataset_path, "r") as f:
             try:
@@ -79,11 +79,14 @@ class EncryptedIndexBuilder:
                         documents.append(json.loads(line))
                     except json.JSONDecodeError as e:
                         print(f"Error parsing line {line_num}: {e}")
+
+        if count:
+            documents = documents[:count]
         return documents
 
-    def process_whole_document_set(self):
+    def process_whole_document_set(self, load_count: int | None = None):
         # 加载示例数据（假设为维基百科JSON格式）
-        documents = self.load_documents()  # 使用上述加载方法
+        documents = self.load_documents(load_count)  # 使用上述加载方法
 
         # 遍历每个文档，对每个文档进行加密
         for idx, doc in enumerate(documents):

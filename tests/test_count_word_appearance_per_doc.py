@@ -1,7 +1,7 @@
 import pytest
 from collections import defaultdict
 from Crypto.Random import get_random_bytes
-from my import EncryptedSearchEngine  # 根据实际路径调整导入
+from my import EncryptedIndexBuilder  # 根据实际路径调整导入
 
 
 class TestCountWordAppearance:
@@ -11,7 +11,7 @@ class TestCountWordAppearance:
         # 生成符合AES-128要求的有效密钥
         valid_key = get_random_bytes(16)
         # 初始化引擎实例（使用空数据集路径）
-        self.engine = EncryptedSearchEngine(
+        self.engine = EncryptedIndexBuilder(
             file_key=valid_key,
             index_key=valid_key,
             dataset_path="/dev/null",
@@ -36,7 +36,7 @@ class TestCountWordAppearance:
     def test_word_count_scenarios(self, test_id, docid, text, expected):
         """测试用例集合（参数化驱动）"""
         # 执行被测方法
-        self.engine._EncryptedSearchEngine__count_word_appearance_per_doc(docid, text) # type: ignore
+        self.engine._EncryptedIndexBuilder__count_word_appearance_per_doc(docid, text)  # type: ignore
 
         # 获取实际结果
         actual = self.engine.word_appearance_time_per_doc[docid]

@@ -1,11 +1,15 @@
 import json
 import pytest
-from encrypt_keyword import symmetric_decryption_for_keyword
-from my import EncryptedSearchEngine
+from encrypt_keyword import (
+    symmetric_encryption_for_keyword,
+    symmetric_decryption_for_keyword,
+)
+from my import EncryptedIndexBuilder, Searcher
 
 # 固定测试密钥（32字节）
 TEST_FILE_KEY = b"1234567891234567"  # 替换实际生成的32字节密钥
 TEST_INDEX_KEY = b"1234567891234567"  # 替换实际生成的32字节密钥
+TEST_INDEX_PATH = "/tmp/index.bin"
 
 
 @pytest.fixture(scope="module")
@@ -33,19 +37,22 @@ def engine(tmp_path, test_data):
         json.dump(test_data, f)
 
     # 初始化引擎
-    engine = EncryptedSearchEngine(
+    index_builder = EncryptedIndexBuilder(
         file_key=TEST_FILE_KEY,
         index_key=TEST_INDEX_KEY,
         dataset_path=str(test_file),
         threshold=1,
     )
-    engine.process_whole_document_set()
-    return engine
+    index_builder.process_whole_document_set()
+    index_builder.dump_index(TEST_INDEX_PATH)
+    searcher = Searcher(TEST_INDEX_PATH, tmp_path, TEST_FILE_KEY)
+    return searcher
 
 
 def test_search_existing_keyword(engine):
     """测试搜索存在的关键词（多结果）"""
-    results = engine.search("computing")
+    token = symmetric_encryption_for_keyword(TEST_INDEX_KEY, "computing")
+    results = engine.search(token)
     assert len(results) == 3
     assert isinstance(results[0], tuple)
     assert isinstance(results[0][0], bytes)  # 加密词频
@@ -65,15 +72,18 @@ def test_search_single_result(tmp_path, test_data):
     test_file = tmp_path / "test_dataset.json"
     with open(test_file, "w") as f:
         json.dump([test_data[0]], f)
-    engine = EncryptedSearchEngine(
+    index_builder = EncryptedIndexBuilder(
         file_key=TEST_FILE_KEY,
         index_key=TEST_INDEX_KEY,
         dataset_path=str(test_file),
         threshold=1,
     )
-    engine.process_whole_document_set()
+    index_builder.process_whole_document_set()
 
-    results = engine.search("cloud")
+    searcher = Searcher(TEST_INDEX_PATH, tmp_path, TEST_FILE_KEY)
+
+    token = symmetric_encryption_for_keyword(TEST_INDEX_KEY, "cloud")
+    results = searcher.search(token)
     assert len(results) == 1
     # 解密文档ID和词频
     doc_id = symmetric_decryption_for_keyword(TEST_INDEX_KEY, results[0][1])
@@ -82,18 +92,21 @@ def test_search_single_result(tmp_path, test_data):
 
 def test_search_non_existing_keyword(engine):
     """测试搜索不存在的关键词"""
-    results = engine.search("nonexistent")
+    token = symmetric_encryption_for_keyword(TEST_INDEX_KEY, "nonexistent")
+    results = engine.search(token)
     assert len(results) == 0
 
 
 @pytest.mark.parametrize("keyword", ["cloud", "Cloud", "CLOUD", "cLOuD"])
 def test_case_insensitive_search(engine, keyword):
     """参数化测试大小写不敏感"""
-    results = engine.search(keyword)
+    token = symmetric_encryption_for_keyword(TEST_INDEX_KEY, keyword.lower())
+    results = engine.search(token)
     assert len(results) == 1
 
 
 def test_empty_keyword_search(engine):
     """测试空关键词搜索"""
-    results = engine.search("")
+    token = symmetric_encryption_for_keyword(TEST_INDEX_KEY, "")
+    results = engine.search(token)
     assert len(results) == 0

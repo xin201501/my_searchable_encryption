@@ -1,7 +1,7 @@
 import pydantic
 import pytest
 from unittest.mock import mock_open, call
-from save_shares import save_index_key_shares
+from save_shares import save_key_shares
 
 
 @pytest.fixture
@@ -16,7 +16,7 @@ def test_normal_case(mocker, valid_input):
     mock_file = mocker.patch("builtins.open", mock_open())
     mock_pickle = mocker.patch("pickle.dump")
 
-    save_index_key_shares(valid_input)
+    save_key_shares(valid_input)
 
     # 验证文件创建数量
     assert mock_file.call_count == 3
@@ -40,7 +40,7 @@ def test_sgx_only_case(mocker):
     mock_pickle = mocker.patch("pickle.dump")
 
     input_data = [{(1, 0): b"3"}]
-    save_index_key_shares(input_data)
+    save_key_shares(input_data)
 
     # 验证用户文件未生成
     assert not any("user_1" in str(c) for c in mock_open().mock_calls)
@@ -54,7 +54,7 @@ def test_sgx_only_case(mocker):
 def test_empty_list_case():
     """测试空列表异常场景"""
     with pytest.raises(pydantic.ValidationError):
-        save_index_key_shares([])
+        save_key_shares([])
 
 
 @pytest.mark.parametrize(
@@ -69,4 +69,4 @@ def test_invalid_data_type(mocker, invalid_input):
     mocker.patch("builtins.open", mock_open())
 
     with pytest.raises(pydantic.ValidationError):
-        save_index_key_shares(invalid_input)
+        save_key_shares(invalid_input)
