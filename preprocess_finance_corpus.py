@@ -12,11 +12,7 @@ def get_news_data(ticker_symbol: str):
 # 将process_item移出为独立函数以避免多进程序列化问题
 def process_item(title, content):
     """处理单个新闻项的独立函数（支持多进程序列化）"""
-    concatted = ""
-    # 跳过最后一项
-    for paragraphs in content[:-1]:
-        concatted = concatted + paragraphs["paragraph"] + "\n"
-    concatted += content[-1]["paragraph"]
+    concatted = "\n".join([item["paragraph"] for item in content])
     return {"title": title, "text": concatted}
 
 
