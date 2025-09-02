@@ -71,6 +71,9 @@ if __name__ == "__main__":
     save_key_shares(key_shares)
     save_dealer_sgx(dealer)
 
+    # dump keywords to a file
+    index_builder.dump_keywords("keywords.txt")
+
     # dump index to a file
     index_builder.dump_index("index.bin")
 

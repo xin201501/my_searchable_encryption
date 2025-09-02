@@ -61,6 +61,7 @@ class EncryptedIndexBuilder:
         self.dataset_path = dataset_path
         self.threshold = threshold
         self.word_pattern = re.compile(r"\b[\w-]+\b")
+        self.keywords_list = set()
 
     def load_documents(self, count: int | None = None):
         documents = []
@@ -95,6 +96,7 @@ class EncryptedIndexBuilder:
             self.__encrypt_document(idx, doc_content)
 
         self.__count_keyword_appearance()
+        self.keywords_list = self.__choose_out_keyword()
         self.__build_inverted_index()
 
     def __count_word_appearance_per_doc(self, docid, text):
@@ -140,11 +142,13 @@ class EncryptedIndexBuilder:
 
     def __choose_out_keyword(self):
         # 返回出现次数大于threshold的词
-        return [
-            word
-            for word, count in self.words_appearance_time.items()
-            if count > self.threshold
-        ]
+        return set(
+            (
+                word
+                for word, count in self.words_appearance_time.items()
+                if count > self.threshold
+            )
+        )
 
     def __init_inverted_index(self):
         # 初始化倒排索引的关键字值
@@ -163,7 +167,7 @@ class EncryptedIndexBuilder:
         """
         for doc_id, word_counts in self.word_appearance_time_per_doc.items():
             for word, count in word_counts.items():
-                if self.words_appearance_time[word] <= self.threshold:
+                if word not in self.keywords_list:
                     continue
                 # 对关键词进行确定性加密处理
                 word_enc = encrypt_keyword.symmetric_encryption_for_keyword(
@@ -184,6 +188,11 @@ class EncryptedIndexBuilder:
         # 加密文档内容
         encrypted = encrypt_doc(text, self.file_key)
         self.encrypted_docs[doc_id] = encrypted
+
+    def dump_keywords(self, file_path):
+        with open(file_path, "wb") as f:
+            content = " ".join(self.keywords_list)
+            f.write(content.encode())
 
     def dump_index(self, file_path):
         with open(file_path, "wb") as f:
@@ -271,6 +280,9 @@ if __name__ == "__main__":
     # store all users and SGX's index_key_shares in a file
     save_key_shares(index_key_shares)
     save_dealer_sgx(dealer)
+
+    # dump keywords to a file
+    index_builder.dump_keywords("keywords.txt")
 
     # dump index to a file
     index_builder.dump_index("index.bin")

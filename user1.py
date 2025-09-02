@@ -18,6 +18,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "--keyword", type=str, required=True, help="Search keyword to look up"
     )
+
+    parser.add_argument("--is_benching", default=False, help="is benching")
+
     args = parser.parse_args()
 
     payload = {
@@ -30,6 +33,10 @@ if __name__ == "__main__":
     response = requests.post(DEFAULT_SEARCH_URL, json=payload)
 
     sorted_results = response.json()["sorted_results"]
+
+    if args.is_benching is True:
+        exit(0)
+
     for tf_str, doc_id_str in sorted_results:
         tf = int(tf_str)
         doc_id = int(doc_id_str)
