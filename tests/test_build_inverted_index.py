@@ -40,6 +40,9 @@ class TestBuildInvertedIndex:
         )  # 直接配置mock
 
         # When
+        search_engine.keywords_list = (
+            search_engine._EncryptedIndexBuilder__choose_out_keyword()
+        )
         search_engine._EncryptedIndexBuilder__build_inverted_index()
 
         # Then
@@ -72,6 +75,9 @@ class TestBuildInvertedIndex:
         # my.symmetric_encryption_for_keyword.side_effect = lambda _, x: f"enc_{x}"
 
         # When
+        search_engine.keywords_list = (
+            search_engine._EncryptedIndexBuilder__choose_out_keyword()
+        )
         search_engine._EncryptedIndexBuilder__build_inverted_index()
 
         # Then
@@ -89,7 +95,9 @@ class TestBuildInvertedIndex:
         # my.symmetric_encryption_for_keyword.return_value = "encrypted"
 
         # When
-
+        search_engine.keywords_list = (
+            search_engine._EncryptedIndexBuilder__choose_out_keyword()
+        )
         search_engine._EncryptedIndexBuilder__build_inverted_index()
 
         # Then
@@ -105,6 +113,9 @@ class TestBuildInvertedIndex:
         search_engine.word_appearance_time_per_doc = {1: {"apple": 3}}
         search_engine.words_appearance_time = {"apple": 3}
         search_engine.threshold = 4
+        search_engine.keywords_list = (
+            search_engine._EncryptedIndexBuilder__choose_out_keyword()
+        )
 
         # When
         search_engine._EncryptedIndexBuilder__build_inverted_index()
