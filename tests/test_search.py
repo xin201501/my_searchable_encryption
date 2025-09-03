@@ -10,6 +10,7 @@ from my import EncryptedIndexBuilder, Searcher
 TEST_FILE_KEY = b"1234567891234567"  # 替换实际生成的32字节密钥
 TEST_INDEX_KEY = b"1234567891234567"  # 替换实际生成的32字节密钥
 TEST_INDEX_PATH = "/tmp/index.bin"
+TEST_FILE_PATH = "/tmp/test_dataset"
 
 
 @pytest.fixture(scope="module")
@@ -43,7 +44,7 @@ def engine(tmp_path, test_data):
         dataset_path=str(test_file),
         threshold=1,
     )
-    index_builder.process_whole_document_set()
+    index_builder.process_whole_document_set(TEST_FILE_PATH)
     index_builder.dump_index(TEST_INDEX_PATH)
     searcher = Searcher(TEST_INDEX_PATH, tmp_path, TEST_FILE_KEY)
     return searcher
@@ -78,7 +79,7 @@ def test_search_single_result(tmp_path, test_data):
         dataset_path=str(test_file),
         threshold=1,
     )
-    index_builder.process_whole_document_set()
+    index_builder.process_whole_document_set(TEST_FILE_PATH)
 
     searcher = Searcher(TEST_INDEX_PATH, tmp_path, TEST_FILE_KEY)
 

@@ -1,5 +1,9 @@
 from my import EncryptedIndexBuilder, Searcher, generate_key
-from preprocess_finance_corpus import get_news_data, process_news
+from preprocess_finance_corpus import (
+    get_all_news_data,
+    get_news_data_by_company_name,
+    process_news,
+)
 import argparse
 import argcomplete
 from colored import Fore, Style
@@ -15,19 +19,30 @@ class FinanceDataSetIndexBuilder(EncryptedIndexBuilder):
     def __init__(self, file_key, index_key, dataset_path, threshold=10):
         super().__init__(file_key, index_key, dataset_path, threshold)
 
-    def load_documents(self, count: int | None = None):
-        news_df = get_news_data(self.dataset_path)
+    def load_documents_by_company_name(
+        self, company_name: str, count: int | None = None
+    ):
+        news_df = get_news_data_by_company_name(company_name)
         # print(f"Fetched {len(news_df)} news articles for {self.dataset_path}")
         corpus = process_news(news_df)
         if count:
             corpus = corpus[:count]
         return corpus
 
+    def load_documents(self, count: int | None = None):
+        if self.dataset_path is None:
+            news_df = get_all_news_data(count)
+            # print(f"Fetched {len(news_df)} news articles for {self.dataset_path}")
+            corpus = process_news(news_df)
+            return corpus
+        else:
+            return self.load_documents_by_company_name(self.dataset_path)
+
 
 if __name__ == "__main__":
     # 配置命令行参数解析
     parser = argparse.ArgumentParser(description="Encrypted Search Engine")
-    parser.add_argument("--company_name", type=str, required=True, help="company name")
+    parser.add_argument("--company_name", type=str, default=None, help="company name")
     parser.add_argument(
         "--threshold",
         type=int,
@@ -53,7 +68,9 @@ if __name__ == "__main__":
         dataset_path=args.company_name,
         threshold=args.threshold,
     )
-    index_builder.process_whole_document_set(load_count=args.doc_count)
+    index_builder.process_whole_document_set(
+        load_count=args.doc_count, file_dir="encrypted_docs_finance"
+    )
 
     second_secret_access_structure = []
     for user_id in range(1, args.user_count):
@@ -76,8 +93,6 @@ if __name__ == "__main__":
 
     # dump index to a file
     index_builder.dump_index("index.bin")
-
-    index_builder.dump_encrypted_docs("encrypted_docs_finance")
 
     if args.local_search is False:
         print(f"Indexing complete.")

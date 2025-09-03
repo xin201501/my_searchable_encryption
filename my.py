@@ -1,6 +1,7 @@
 import argparse
 import json
-from multiprocessing import Pool
+import multiprocessing
+from multiprocessing import Pool, Lock
 import os
 import pickle
 import shutil
@@ -16,7 +17,11 @@ from Crypto.Util.number import getPrime
 import encrypt_keyword
 from save_shares import save_dealer_sgx, save_key_shares
 from collections import Counter
+from tqdm import tqdm
+from functools import partial
 import enc_rust
+
+multiprocessing.set_start_method("spawn", force=True)
 
 
 def serialize_shares(shares):
@@ -47,20 +52,29 @@ def decrypt_doc(encrypted_data, key):
     return enc_rust.aes_gcm_decrypt(key, encrypted_data)
 
 
+word_pattern = re.compile(r"\b[\w-]+\b")
+
+
+# 将文档处理提取为独立函数以支持多进程
+def process_document(idx, doc, file_key):
+    doc_content = doc["title"] + " " + doc["text"]
+    word_counts = Counter(word_pattern.findall(doc_content.lower()))
+    encrypted = encrypt_doc(doc_content, file_key)
+    return idx, word_counts, encrypted
+
+
 # 构建加密索引
 class EncryptedIndexBuilder:
     def __init__(self, file_key, index_key, dataset_path, threshold=10):
         self.file_key = file_key
         self.index_key = index_key
         self.inverted_index = defaultdict(list)
-        self.encrypted_docs = {}
         self.words_appearance_time = defaultdict(int)  # 记录每个关键词出现的次数
         self.word_appearance_time_per_doc = defaultdict(
             lambda: defaultdict(int)
         )  # 记录每个关键词出现在每个文档中的次数
         self.dataset_path = dataset_path
         self.threshold = threshold
-        self.word_pattern = re.compile(r"\b[\w-]+\b")
         self.keywords_list = set()
 
     def load_documents(self, count: int | None = None):
@@ -85,15 +99,30 @@ class EncryptedIndexBuilder:
             documents = documents[:count]
         return documents
 
-    def process_whole_document_set(self, load_count: int | None = None):
+    def process_whole_document_set(self, file_dir: str, load_count: int | None = None):
+        if os.path.exists(file_dir):
+            shutil.rmtree(file_dir)
+        os.makedirs(file_dir)
+
         # 加载示例数据（假设为维基百科JSON格式）
         documents = self.load_documents(load_count)  # 使用上述加载方法
 
-        # 遍历每个文档，对每个文档进行加密
-        for idx, doc in enumerate(documents):
-            doc_content = doc["title"] + " " + doc["text"]
-            self.__count_word_appearance_per_doc(idx, doc_content)
-            self.__encrypt_document(idx, doc_content)
+        # 使用进程池并行处理文档
+        process_document_with_key = partial(process_document, file_key=self.file_key)
+        lock = Lock()
+        with Pool() as pool:
+
+            results = pool.starmap(process_document_with_key, enumerate(documents))
+
+            # 批量更新共享状态
+            batch_updates = []
+            for idx, word_counts, encrypted in tqdm(results):
+                batch_updates.append((idx, word_counts))
+                EncryptedIndexBuilder.dump_doc(idx, encrypted, file_dir)
+            lock.acquire()
+            for idx, word_counts in batch_updates:
+                self.word_appearance_time_per_doc[idx].update(word_counts)
+            lock.release()
 
         self.__count_keyword_appearance()
         self.keywords_list = self.__choose_out_keyword()
@@ -110,7 +139,7 @@ class EncryptedIndexBuilder:
             None: 结果直接更新类成员变量words_appearance_time_per_doc
         """
         # 使用正则表达式提取全部单词并转换为小写
-        words = self.word_pattern.findall(text.lower())
+        words = word_pattern.findall(text.lower())
 
         # 统计每个单词在当前文档中的出现次数
         # words_appearance_time_per_doc结构为: Dict[docid][word] = count
@@ -184,10 +213,9 @@ class EncryptedIndexBuilder:
                 # 将加密后的词频和文档ID对添加到倒排索引中
                 self.inverted_index[word_enc].append((count_enc, doc_id_enc))
 
-    def __encrypt_document(self, doc_id, text: str):
+    def __encrypt_document(self, text: str):
         # 加密文档内容
-        encrypted = encrypt_doc(text, self.file_key)
-        self.encrypted_docs[doc_id] = encrypted
+        return encrypt_doc(text, self.file_key)
 
     def dump_keywords(self, file_path):
         with open(file_path, "wb") as f:
@@ -202,25 +230,6 @@ class EncryptedIndexBuilder:
     def dump_doc(doc_id, doc, file_dir):
         with open(os.path.join(file_dir, str(doc_id)), "wb") as f:
             f.write(doc)
-
-    def dump_encrypted_docs(self, file_dir):
-        # 新建一个文件夹
-        if os.path.exists(file_dir):
-            # 删除文件夹及文件夹下的所有文件
-            shutil.rmtree(file_dir)
-        os.mkdir(file_dir)
-
-        # 每个doc单独存储在名为doc_id的文件中
-        # 多进程写入
-
-        with Pool() as pool:
-            pool.starmap(
-                EncryptedIndexBuilder.dump_doc,
-                [
-                    (doc_id, doc, file_dir)
-                    for doc_id, doc in self.encrypted_docs.items()
-                ],
-            )
 
 
 class Searcher:
@@ -268,7 +277,7 @@ if __name__ == "__main__":
         dataset_path=args.dataset,
         threshold=0,
     )
-    index_builder.process_whole_document_set()
+    index_builder.process_whole_document_set("encrypted_docs")
 
     # 使用LSSS库拆分index_key
     dealer, index_key_shares = LSSS.setup_secret_sharing(
@@ -286,8 +295,6 @@ if __name__ == "__main__":
 
     # dump index to a file
     index_builder.dump_index("index.bin")
-
-    index_builder.dump_encrypted_docs("encrypted_docs")
 
     # 执行搜索
     search_engine = Searcher(
