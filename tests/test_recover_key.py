@@ -7,8 +7,11 @@ from recover_key import combine_secret, CombineRequest
 
 @patch("LSSS.combine_secret_from_shares")
 @patch("multisecret.MultiSecretRoyAdhikari.Dealer")
+@patch("builtins.open")
 @patch("pickle.load")
-async def test_combine_secret_success(mock_combine, mock_dealer, mock_pickle_loads):
+async def test_combine_secret_success(
+    mock_combine, mock_dealer, mock_open, mock_pickle_loads
+):
     """TC01: 正常参数组合测试"""
     # 构造测试数据
     mock_request = CombineRequest(
@@ -38,7 +41,8 @@ async def test_combine_secret_success(mock_combine, mock_dealer, mock_pickle_loa
 
 @patch("recover_key.decode_dealer_base64")
 @patch("LSSS.combine_secret_from_shares")
-async def test_combine_secret_lsss_error(mock_combine, mock_decode):
+@patch("builtins.open")
+async def test_combine_secret_lsss_error(mock_combine, mock_decode, mock_open):
     """TC03: LSSS组合失败测试"""
     # 构造测试数据
     mock_request = CombineRequest(
