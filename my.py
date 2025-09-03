@@ -20,6 +20,8 @@ from collections import Counter
 from tqdm import tqdm
 from functools import partial
 import enc_rust
+import asyncio
+import aiofiles
 
 multiprocessing.set_start_method("spawn", force=True)
 
@@ -109,20 +111,25 @@ class EncryptedIndexBuilder:
 
         # 使用进程池并行处理文档
         process_document_with_key = partial(process_document, file_key=self.file_key)
-        lock = Lock()
         with Pool() as pool:
 
             results = pool.starmap(process_document_with_key, enumerate(documents))
 
-            # 批量更新共享状态
-            batch_updates = []
-            for idx, word_counts, encrypted in tqdm(results):
-                batch_updates.append((idx, word_counts))
+        # 创建一个asyncio任务队列
+        tasks = []
+        loop = asyncio.get_event_loop()
+        for idx, word_counts, encrypted in tqdm(results):
+            self.word_appearance_time_per_doc[idx].update(word_counts)
+            # 异步保存文档
+            task = loop.create_task(
                 EncryptedIndexBuilder.dump_doc(idx, encrypted, file_dir)
-            lock.acquire()
-            for idx, word_counts in batch_updates:
-                self.word_appearance_time_per_doc[idx].update(word_counts)
-            lock.release()
+            )
+            tasks.append(task)
+
+        # 等待所有保存文档任务完成
+        for task in tasks:
+            loop.run_until_complete(task)
+        loop.close()
 
         self.__count_keyword_appearance()
         self.keywords_list = self.__choose_out_keyword()
@@ -227,9 +234,9 @@ class EncryptedIndexBuilder:
             pickle.dump(self.inverted_index, f)
 
     @staticmethod
-    def dump_doc(doc_id, doc, file_dir):
-        with open(os.path.join(file_dir, str(doc_id)), "wb") as f:
-            f.write(doc)
+    async def dump_doc(doc_id, doc, file_dir):
+        async with aiofiles.open(os.path.join(file_dir, str(doc_id)), "wb") as f:
+            await f.write(doc)
 
 
 class Searcher:
