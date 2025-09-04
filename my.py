@@ -101,6 +101,8 @@ class EncryptedIndexBuilder:
         return documents
 
     def process_whole_document_set(self, file_dir: str, load_count: int | None = None):
+        import gc
+
         if os.path.exists(file_dir):
             shutil.rmtree(file_dir)
         os.makedirs(file_dir)
@@ -127,6 +129,9 @@ class EncryptedIndexBuilder:
         self.__count_keyword_appearance()
         self.keywords_list = self.__choose_out_keyword()
         self.words_appearance_time.clear()
+        del results
+        del documents
+        gc.collect()
         self.__build_inverted_index()
 
     def __count_word_appearance_per_doc(self, docid, text):
