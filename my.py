@@ -1,41 +1,21 @@
-import argparse
-import json
-import multiprocessing
-from multiprocessing import Pool
-import os
-import pickle
-import shutil
-import sys
-from Crypto.Random import get_random_bytes
 import re
-from collections import defaultdict
-from colored import Fore, Style
-import requests
-import base64
-import LSSS
-from Crypto.Util.number import getPrime
-import encrypt_keyword
-from save_shares import save_dealer_sgx, save_key_shares
-from collections import Counter
-from tqdm import tqdm
-from functools import partial
-import enc_rust
-import asyncio
-import uvloop
-import aiofiles
 
 
 def serialize_shares(shares):
+    from base64 import b64encode
+
     serialized = []
     for x, share in shares:
         serialized.append(
-            {"x": x, "share": base64.b64encode(share).decode("utf-8")}  # 转换为字符串
+            {"x": x, "share": b64encode(share).decode("utf-8")}  # 转换为字符串
         )
     return serialized
 
 
 # 生成加密密钥
 def generate_key(key_length=128):
+    from Crypto.Random import get_random_bytes
+
     if key_length <= 0 or key_length % 8 != 0:
         raise ValueError(
             "Key length must be a positive integer multiple of 8 (e.g. 128, 256)"
@@ -45,11 +25,15 @@ def generate_key(key_length=128):
 
 # 加密文档内容
 def encrypt_doc(data, key):
+    import enc_rust
+
     return enc_rust.aes_gcm_encrypt(key, data)
 
 
 # 解密文档内容
 def decrypt_doc(encrypted_data, key):
+    import enc_rust
+
     return enc_rust.aes_gcm_decrypt(key, encrypted_data)
 
 
@@ -58,6 +42,8 @@ word_pattern = re.compile(r"\b[\w-]+\b")
 
 # 将文档处理提取为独立函数以支持多进程
 def process_document(idx, doc, file_key):
+    from collections import Counter
+
     doc_content = doc["title"] + " " + doc["text"]
     word_counts = Counter(word_pattern.findall(doc_content.lower()))
     encrypted = encrypt_doc(doc_content, file_key)
@@ -67,6 +53,8 @@ def process_document(idx, doc, file_key):
 # 构建加密索引
 class EncryptedIndexBuilder:
     def __init__(self, file_key, index_key, dataset_path, threshold=10):
+        from collections import defaultdict
+
         self.file_key = file_key
         self.index_key = index_key
         self.inverted_index = defaultdict(list)
@@ -79,6 +67,8 @@ class EncryptedIndexBuilder:
         self.keywords_list = set()
 
     def load_documents(self, count: int | None = None):
+        import json
+
         documents = []
         with open(self.dataset_path, "r") as f:
             try:
@@ -101,7 +91,13 @@ class EncryptedIndexBuilder:
         return documents
 
     def process_whole_document_set(self, file_dir: str, load_count: int | None = None):
+        import shutil
+        import os
         import gc
+        import asyncio
+        import uvloop
+        from functools import partial
+        from multiprocessing import Pool
 
         if os.path.exists(file_dir):
             shutil.rmtree(file_dir)
@@ -144,6 +140,8 @@ class EncryptedIndexBuilder:
         Returns:
             None: 结果直接更新类成员变量words_appearance_time_per_doc
         """
+        from collections import Counter
+
         # 使用正则表达式提取全部单词并转换为小写
         words = word_pattern.findall(text.lower())
 
@@ -186,6 +184,8 @@ class EncryptedIndexBuilder:
         )
 
     def __init_inverted_index(self):
+        import encrypt_keyword
+
         # 初始化倒排索引的关键字值
         for word in self.__choose_out_keyword():
             # 对关键词进行确定性加密处理
@@ -200,6 +200,9 @@ class EncryptedIndexBuilder:
         遍历word_appearance_time_per_doc，统计每个关键字在哪些文档中出现以及出现的次数，
         并将结果存储在inverted_index中。inverted_index的结构为{加密的关键字: [(加密的词频, 加密的doc_id), ...]}。
         """
+        import encrypt_keyword
+        from tqdm import tqdm
+
         for doc_id, word_counts in tqdm(self.word_appearance_time_per_doc.items()):
             for word, count in word_counts.items():
                 if word not in self.keywords_list:
@@ -229,17 +232,24 @@ class EncryptedIndexBuilder:
             f.write(content.encode())
 
     def dump_index(self, file_path):
+        import pickle
+
         with open(file_path, "wb") as f:
             pickle.dump(self.inverted_index, f)
 
     @staticmethod
     async def dump_doc(doc_id, doc, file_dir):
+        import aiofiles
+        import os
+
         async with aiofiles.open(os.path.join(file_dir, str(doc_id)), "wb") as f:
             await f.write(doc)
 
 
 class Searcher:
     def __init__(self, index_path, file_dir, file_key):
+        import pickle
+
         self.file_key = file_key
         self.file_dir = file_dir
         with open(index_path, "rb") as f:
@@ -250,6 +260,8 @@ class Searcher:
         return tf_enc_and_doc_id_enc_structs
 
     def decrypt_document(self, doc_id):
+        import os
+
         with open(os.path.join(self.file_dir, str(doc_id)), "rb") as f:
             encrypted_doc = f.read()
 
@@ -258,6 +270,18 @@ class Searcher:
 
 # 使用示例
 if __name__ == "__main__":
+    import multiprocessing
+    import argparse
+    import os
+    import sys
+    from colored import Fore, Style
+    import requests
+    import base64
+    import LSSS
+    from Crypto.Util.number import getPrime
+    import encrypt_keyword
+    from save_shares import save_dealer_sgx, save_key_shares
+
     multiprocessing.set_start_method("forkserver", force=True)
     # 配置命令行参数解析
     parser = argparse.ArgumentParser(description="Encrypted Search Engine")
