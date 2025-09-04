@@ -24,8 +24,6 @@ import asyncio
 import uvloop
 import aiofiles
 
-multiprocessing.set_start_method("forkserver")
-
 
 def serialize_shares(shares):
     serialized = []
@@ -128,6 +126,7 @@ class EncryptedIndexBuilder:
 
         self.__count_keyword_appearance()
         self.keywords_list = self.__choose_out_keyword()
+        self.words_appearance_time.clear()
         self.__build_inverted_index()
 
     def __count_word_appearance_per_doc(self, docid, text):
@@ -196,7 +195,7 @@ class EncryptedIndexBuilder:
         遍历word_appearance_time_per_doc，统计每个关键字在哪些文档中出现以及出现的次数，
         并将结果存储在inverted_index中。inverted_index的结构为{加密的关键字: [(加密的词频, 加密的doc_id), ...]}。
         """
-        for doc_id, word_counts in self.word_appearance_time_per_doc.items():
+        for doc_id, word_counts in tqdm(self.word_appearance_time_per_doc.items()):
             for word, count in word_counts.items():
                 if word not in self.keywords_list:
                     continue
@@ -254,6 +253,7 @@ class Searcher:
 
 # 使用示例
 if __name__ == "__main__":
+    multiprocessing.set_start_method("forkserver", force=True)
     # 配置命令行参数解析
     parser = argparse.ArgumentParser(description="Encrypted Search Engine")
     parser.add_argument(

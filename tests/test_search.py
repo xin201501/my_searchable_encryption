@@ -1,10 +1,13 @@
 import json
 import pytest
+import multiprocessing
 from encrypt_keyword import (
     symmetric_encryption_for_keyword,
     symmetric_decryption_for_keyword,
 )
 from my import EncryptedIndexBuilder, Searcher
+
+multiprocessing.set_start_method("forkserver", force=True)
 
 # 固定测试密钥（32字节）
 TEST_FILE_KEY = b"1234567891234567"  # 替换实际生成的32字节密钥

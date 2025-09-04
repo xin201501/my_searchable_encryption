@@ -1,3 +1,4 @@
+import multiprocessing
 from my import EncryptedIndexBuilder, Searcher, generate_key
 from preprocess_finance_corpus import (
     get_all_news_data,
@@ -40,6 +41,7 @@ class FinanceDataSetIndexBuilder(EncryptedIndexBuilder):
 
 
 if __name__ == "__main__":
+    multiprocessing.set_start_method("forkserver", force=True)
     # 配置命令行参数解析
     parser = argparse.ArgumentParser(description="Encrypted Search Engine")
     parser.add_argument("--company_name", type=str, default=None, help="company name")
@@ -73,8 +75,11 @@ if __name__ == "__main__":
     )
 
     second_secret_access_structure = []
-    for user_id in range(1, args.user_count):
-        second_secret_access_structure.append([user_id, args.user_count + 1])
+    num_of_participants = args.user_count + 1
+    for user_id in range(1, num_of_participants):
+        second_secret_access_structure.append(
+            [user_id, num_of_participants]
+        )  # id of num_of_participants is the SGX
 
     # 使用LSSS库拆分index_key和file_key
     dealer, key_shares = LSSS.setup_secret_sharing(

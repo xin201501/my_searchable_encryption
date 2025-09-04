@@ -1,17 +1,19 @@
-from defeatbeta_api.data.ticker import Ticker
 from pandas import DataFrame
-from concurrent.futures import ProcessPoolExecutor
-from defeatbeta_api.client.duckdb_client import DuckDBClient
-from defeatbeta_api.client.hugging_face_client import HuggingFaceClient
-from defeatbeta_api.utils.const import stock_news
+
 
 def get_news_data_by_company_name(ticker_symbol: str):
+    from defeatbeta_api.data.ticker import Ticker
+
     ticker = Ticker(ticker_symbol)
     news = ticker.news()
     return news.get_news_list()
 
 
 def get_all_news_data(count: int | None):
+    from defeatbeta_api.client.duckdb_client import DuckDBClient
+    from defeatbeta_api.client.hugging_face_client import HuggingFaceClient
+    from defeatbeta_api.utils.const import stock_news
+
     duckdb_client = DuckDBClient()
     huggingface_client = HuggingFaceClient()
     url = huggingface_client.get_url_path(stock_news)
@@ -31,6 +33,8 @@ def process_item(title, content):
 
 
 def process_news(news_df: DataFrame):
+    from concurrent.futures import ProcessPoolExecutor
+
     title, content = news_df["title"], news_df["news"]
     zip_news = zip(title, content)
 
