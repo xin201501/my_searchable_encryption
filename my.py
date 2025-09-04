@@ -1,7 +1,7 @@
 import argparse
 import json
 import multiprocessing
-from multiprocessing import Pool, Lock
+from multiprocessing import Pool
 import os
 import pickle
 import shutil
@@ -21,9 +21,10 @@ from tqdm import tqdm
 from functools import partial
 import enc_rust
 import asyncio
+import uvloop
 import aiofiles
 
-multiprocessing.set_start_method("spawn", force=True)
+multiprocessing.set_start_method("forkserver")
 
 
 def serialize_shares(shares):
@@ -112,24 +113,18 @@ class EncryptedIndexBuilder:
         # 使用进程池并行处理文档
         process_document_with_key = partial(process_document, file_key=self.file_key)
         with Pool() as pool:
-
             results = pool.starmap(process_document_with_key, enumerate(documents))
 
-        # 创建一个asyncio任务队列
         tasks = []
-        loop = asyncio.get_event_loop()
-        for idx, word_counts, encrypted in tqdm(results):
+        loop = uvloop.new_event_loop()
+        asyncio.set_event_loop(loop)
+        for idx, word_counts, encrypted in results:
             self.word_appearance_time_per_doc[idx].update(word_counts)
             # 异步保存文档
-            task = loop.create_task(
-                EncryptedIndexBuilder.dump_doc(idx, encrypted, file_dir)
-            )
+            task = loop.create_task(self.dump_doc(idx, encrypted, file_dir))
             tasks.append(task)
 
-        # 等待所有保存文档任务完成
-        for task in tasks:
-            loop.run_until_complete(task)
-        loop.close()
+        loop.run_until_complete(asyncio.wait(tasks))
 
         self.__count_keyword_appearance()
         self.keywords_list = self.__choose_out_keyword()

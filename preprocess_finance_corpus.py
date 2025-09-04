@@ -2,10 +2,8 @@ from defeatbeta_api.data.ticker import Ticker
 from pandas import DataFrame
 from concurrent.futures import ProcessPoolExecutor
 from defeatbeta_api.client.duckdb_client import DuckDBClient
-from defeatbeta_api.client.duckdb_client import Configuration
 from defeatbeta_api.client.hugging_face_client import HuggingFaceClient
 from defeatbeta_api.utils.const import stock_news
-
 
 def get_news_data_by_company_name(ticker_symbol: str):
     ticker = Ticker(ticker_symbol)
@@ -14,7 +12,7 @@ def get_news_data_by_company_name(ticker_symbol: str):
 
 
 def get_all_news_data(count: int | None):
-    duckdb_client = DuckDBClient(config=Configuration(threads=8))
+    duckdb_client = DuckDBClient()
     huggingface_client = HuggingFaceClient()
     url = huggingface_client.get_url_path(stock_news)
     if count is None:
@@ -22,7 +20,6 @@ def get_all_news_data(count: int | None):
     else:
         sql = f"SELECT * FROM '{url}' LIMIT {count}"
     result = duckdb_client.query(sql)
-    print(result.head())
     return result
 
 

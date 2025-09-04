@@ -36,7 +36,7 @@ class FinanceDataSetIndexBuilder(EncryptedIndexBuilder):
             corpus = process_news(news_df)
             return corpus
         else:
-            return self.load_documents_by_company_name(self.dataset_path)
+            return self.load_documents_by_company_name(self.dataset_path, count)
 
 
 if __name__ == "__main__":
